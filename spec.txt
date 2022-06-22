@@ -1,0 +1,42 @@
+
+Database:
+  Calendars Table
+    UUID [PRIMARY]:TEXT | Name:TEXT | ...
+
+  Schedules Table
+    Calendar UUID [FOREIGN]:TEXT | UUID [PRIMARY]:TEXT | Name:TEXT | ... | Schedule:BLOB
+
+Schedule Format:
+  "[DAYCODE]={[A,U,T], 48 times for each half-hour}, 7 times for each day"
+  "0={[0-2], ...}, 1={[0-2], ...}, ..."
+  0=Available
+  1=Unavailable
+  2=Tentative
+
+Main Page:
+  Lookup calendar by ID or NAME
+    if multiple results, display all results
+  Create calendar
+    gen new uuid
+    insert into Calendars Table
+    transfer to Calendar View Page
+
+Calendar View Page:
+  Display calendar
+  List all schedules, with toggles and edit buttons
+    Toggling a schedule will display it on the displayed calendar
+    Clicking edit buttons will transfer to Edit Schedule Page
+  Create Schedule button
+    gen new uuid
+    insert into Schedules Table
+    will transfer to Edit Schedule Page
+
+Edit Schedule Page
+  Display calendar
+    grid of drop-down fields (48 x 7)
+  Allow inserting one of 3 values into each field on the calendar: Available, Unavailable, Tentative
+  Text field for editing name + other data fields if applicable
+  Save button
+  Back button
+    Will warn if unsaved changes
+
