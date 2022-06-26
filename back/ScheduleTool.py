@@ -7,10 +7,14 @@ import sys
 import uuid
 from enum import Enum, unique, auto
 
+import ConfigUtils
+
 ENABLE_DB = True
 
 CALENDARS_TABLE_NAME = "calendars"
 SCHEDULES_TABLE_NAME = "schedules"
+
+ConfigUtils.init()
 
 def getHtml(body: str, status) -> str:
     status_str = ""
@@ -40,7 +44,7 @@ def printError(*args, **kwargs):
 class DatabaseManager(object):
     def __init__(self):
         printError("Connecting to database...")
-        self.db = sqlite3.connect("schedule_tool.db")
+        self.db = sqlite3.connect(ConfigUtils.getConfig()['General']['DBPath'])
         self.cur = self.db.cursor()
         printError("Done")
 
@@ -324,5 +328,6 @@ def main():
     #  here
     returnError(200, "")
 
-main()
+if __name__ == '__main__':
+    main()
 
