@@ -62,6 +62,41 @@ function genCalendar(div_name, cell_callback, header_onclick) {
     table_div.append(table)
 }
 
+function genViewCalendar(div_name) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var calendar_uuid = getQuery('uuid')
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({ cal_uuid: calendar_uuid }),
+        headers: {
+            // 'Content-Type': 'application/json'
+        }
+    }
+
+    // Get calendar information
+    fetch(schedule_tool_path + '?operation=GET_CAL', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('genViewCalendar[PROPERTIES](' + div_name + ')');
+
+            // Set the calendar name based on the response from the server
+            const form_cal_name = document.querySelector("#cname");
+
+            form_cal_name.value = json['name']
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+
+    // TODO: Get schedule information for every schedule in the calendar
+
+    genCalendar(div_name, function(time, day) {
+        return document.createTextNode('TODO')
+    })
+}
+
 // CreateSchedule calendar generation function
 function genCreateScheduleCalendar(div_name) {
     genCalendar(div_name, function(time, day) {
@@ -122,13 +157,13 @@ function genEditScheduleCalendar(div_name) {
 function genCalendarsList(div_name) {
     const options = {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
         headers: {
             'Content-Type': 'application/json'
         }
     }
 
-    fetch(schedule_tool_path + '?operation=LIST_CAL', {})
+    fetch(schedule_tool_path + '?operation=LIST_CAL', options)
         .then(res => res.json())
         .then(function(json) {
             console.log('genCalendarsList(' + div_name + ')');
@@ -175,5 +210,15 @@ function genForScheduleList(calendar_uuid, schedule_callback) {
 
 function getCalendarCell(div_name, x, y) {
     return document.querySelector("div#" + div_name).querySelector("table").rows[y].cells[x];
+}
+
+function hasQuery(query_name) {
+    const params = new URLSearchParams(window.location.search)
+    return params.has(query_name)
+}
+
+function getQuery(query_name) {
+    const params = new URLSearchParams(window.location.search)
+    return params.get(query_name)
 }
 
