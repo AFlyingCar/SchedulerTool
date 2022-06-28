@@ -2,6 +2,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Calendar Generation Functions
 
+var schedule_tool_path = ''
+
 var day_names = [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ];
 
 function genCalendarHeader(header_row, header_onclick) {
@@ -115,6 +117,34 @@ function genEditScheduleCalendar(div_name) {
 
     // TODO: Download the schedule we want to look at, and adjust the properties
     //   for it
+}
+
+function genCalendarsList(div_name) {
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({})
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }
+
+    fetch(schedule_tool_path + '?operation=LIST_CAL', {})
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('genCalendarsList(' + div_name + ')');
+            const table_div = document.querySelector("div#" + div_name);
+
+            json.forEach(function(v, i) {
+                console.log("Received calendar '" + JSON.stringify(v) + "'")
+                const calendar_link = document.createElement('a')
+
+                // Use './' to do a relative link from here
+                calendar_link.href = './CalendarView.html?uuid=' + v["uuid"]
+                calendar_link.appendChild(document.createTextNode(v["name"]))
+
+                table_div.appendChild(calendar_link)
+            })
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
