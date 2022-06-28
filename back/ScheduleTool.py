@@ -22,14 +22,14 @@ def getHtml(body: str, status) -> str:
     if status != None:
         status_str = f"\r\nStatus:{status}"
 
-    return f"Content-type:text/html{status_str}\r\n\r\n<html>{body}</html>"
+    return f"Content-type:text/html\r\nAccess-Control-Allow-Origin: *{status_str}\r\n\r\n<html>{body}</html>"
 
 def getJson(data: str, status) -> str:
     status_str = ""
     if status != None:
         status_str = f"\r\nStatus:{status}"
 
-    return f"Content-type:text/json{status_str}\r\n\r\n{data}"
+    return f"Content-type:text/json\r\nAccess-Control-Allow-Origin: *{status_str}\r\n\r\n{data}"
 
 def returnError(status: int, reason: str):
     print(getHtml(f"{reason}", status))
@@ -329,7 +329,8 @@ def main():
 
     data = sys.stdin.read()
     if not data:
-        returnError(400, "<p>No POST data sent.</p>")
+        # Receiving no POST data is not necessarily an error.
+        data = "{}"
     jdata = json.loads(data)
 
     printError(f"Received data = {data}")
