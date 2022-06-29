@@ -182,12 +182,102 @@ function genCalendarsList(div_name) {
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
+function genSchedulesList(div_name) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var calendar_uuid = getQuery('uuid')
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({ cal_uuid: calendar_uuid }),
+        headers: {
+        }
+    }
+
+    fetch(schedule_tool_path + '?operation=LIST_SCH', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('getSchedulesList')
+
+            json.forEach(function(v, i) {
+                const schedules_list_div = document.querySelector("div#" + div_name);
+
+                console.log("Received schedule '" + JSON.stringify(v) + "'")
+                const calendar_link = document.createElement('a')
+
+                // Use './' to do a relative link from here
+                calendar_link.href = './ScheduleView.html?uuid=' + v["uuid"]
+                calendar_link.appendChild(document.createTextNode(v["name"]))
+
+                schedules_list_div.appendChild(calendar_link)
+            })
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Request submit functions
 
 function submitEditCalendarProperties() {
     // TODO
 }
+
+function submitCreateSchedule() {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var calendar_uuid = getQuery('uuid')
+
+    const schedule_name = document.querySelector("#cname");
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({ cal_uuid: calendar_uuid, name: schedule_name.value }),
+        headers: {
+        }
+    }
+
+    fetch(schedule_tool_path + '?operation=CREATE_SCH', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('createSchedule')
+
+            window.location.replace('./CalendarView.html?uuid=' + calendar_uuid)
+
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+
+    // TODO: Also submit the schedule data
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Page Loader functions
+
+function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var calendar_uuid = getQuery('uuid')
+
+    genViewCalendar(cal_div);
+    genSchedulesList(schedule_div)
+
+    // Make sure that we adjust the height of the schedules list so that it lines
+    //   up with the calendar's height
+    const cal_table_div = document.querySelector("div#" + cal_div);
+    const schedules_list_div = document.querySelector("div#" + schedule_div);
+    schedules_list_div.style.height = cal_table_div.clientHeight;
+
+    // Make sure that the create schedule element can also point at the right page
+    const create_schedule_element = document.querySelector("#" + create_schedule_link);
+    create_schedule_element.href += "?uuid=" + calendar_uuid;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
