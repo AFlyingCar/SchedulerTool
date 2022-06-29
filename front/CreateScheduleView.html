@@ -1,0 +1,20 @@
+<html>
+    <head><title>Create Schedule</title></head>
+
+    <script src="js/Calendars.js"></script>
+
+    <body onLoad="genCreateScheduleCalendar('table_div')">
+        <div id="new_schedule_properties">
+            <!-- <form action="../back/ScheduleTool.py" method="POST" name="Details Edit Form"> -->
+            <form action="javascript:submitCreateSchedule()" name="Details Edit Form">
+                <p><label for="calendar_name">Schedule Name:</label>
+                <input type="text" name="calendar_name" id="cname">
+
+                <input value="Save" type="submit">
+            </form>
+        </div>
+
+        <div id="table_div"></div>
+    </body>
+</html>
+
