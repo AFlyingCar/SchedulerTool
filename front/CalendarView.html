@@ -4,10 +4,7 @@
     <script src="js/Calendars.js"></script>
 
     <body onLoad="loadCalendarView('table_div', 'schedule_div', 'create_schedule_link')">
-        <!-- TODO: We need to also have a list of the schedules here, so that we can update how we display the calendar accordingly -->
-
         <div id="edit_calendar_properties">
-            <!-- <form action="../back/ScheduleTool.py" method="POST" name="Details Edit Form"> -->
             <form action="javascript:submitEditCalendarProperties()" name="Details Edit Form">
                 <p><label for="calendar_name">Calendar Name:</label>
                 <input type="text" name="calendar_name" id="cname">
