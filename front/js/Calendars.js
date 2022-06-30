@@ -203,16 +203,38 @@ function genSchedulesList(div_name) {
             console.log('getSchedulesList')
 
             json.forEach(function(v, i) {
+                console.log("Received schedule '" + JSON.stringify(v) + "'")
+
                 const schedules_list_div = document.querySelector("div#" + div_name);
 
-                console.log("Received schedule '" + JSON.stringify(v) + "'")
-                const calendar_link = document.createElement('a')
+                // Container for holding the link to the schedule and the toggle check-box
+                const schedule_div = document.createElement('div')
+
+                // Create link to the schedule
+                const schedule_link = document.createElement('a')
 
                 // Use './' to do a relative link from here
-                calendar_link.href = './ScheduleView.html?uuid=' + v["uuid"]
-                calendar_link.appendChild(document.createTextNode(v["name"]))
+                schedule_link.href = './ScheduleView.html?uuid=' + v["uuid"]
+                schedule_link.appendChild(document.createTextNode(v["name"]))
 
-                schedules_list_div.appendChild(calendar_link)
+                // Create checkbox to toggle the schedule
+                const schedule_toggle = document.createElement('input')
+
+                schedule_toggle.type = 'checkbox'
+                schedule_toggle.onchange = function() {
+                    // Make sure we represent the change
+                    schedule_toggle.checked = !schedule_toggle.checked
+
+                    // TODO: Change whether this schedule is displayed
+                }
+                schedule_toggle.style.float = 'left'
+
+                schedule_toggle.onchange(); // Make sure that we start them off toggled
+
+                schedule_div.appendChild(schedule_link)
+                schedule_div.appendChild(schedule_toggle)
+
+                schedules_list_div.appendChild(schedule_div)
             })
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
@@ -276,6 +298,9 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     // Make sure that the create schedule element can also point at the right page
     const create_schedule_element = document.querySelector("#" + create_schedule_link);
     create_schedule_element.href += "?uuid=" + calendar_uuid;
+
+    // TODO: Support for sharing a specific view of a calendar?
+    //   Will require toggling-off all schedules that are not selected
 }
 
 
