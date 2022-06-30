@@ -1,10 +1,11 @@
-#!/usr/env python3
+#!/usr/bin/env python3
 
 import sqlite3
 import json
-import cgi
 import sys
 import uuid
+import urllib
+import os
 from enum import Enum, unique, auto
 
 import ConfigUtils
@@ -16,19 +17,27 @@ SCHEDULES_TABLE_NAME = "schedules"
 
 ConfigUtils.init()
 
+def getCommonHeaders() -> str:
+    return '\r\n'.join([
+        "Content-type:text/html",
+        "Access-Control-Allow-Origin: *",
+        "Access-Control-Request-Headers: Content-Type",
+        "" # Make sure to have an empty one at the end so we always end with \r\n
+        ])
+
 def getHtml(body: str, status) -> str:
     status_str = ""
     if status != None:
-        status_str = f"\r\nStatus:{status}"
+        status_str = f"Status:{status}\r\n"
 
-    return f"Content-type:text/html{status_str}\r\n\r\n<html>{body}</html>"
+    return f"{getCommonHeaders()}{status_str}\r\n<html>{body}</html>"
 
 def getJson(data: str, status) -> str:
     status_str = ""
     if status != None:
-        status_str = f"\r\nStatus:{status}"
+        status_str = f"Status:{status}\r\n"
 
-    return f"Content-type:text/json{status_str}\r\n\r\n{data}"
+    return f"{getCommonHeaders()}{status_str}\r\n{data}"
 
 def returnError(status: int, reason: str):
     print(getHtml(f"{reason}", status))
@@ -43,7 +52,7 @@ def printError(*args, **kwargs):
 
 class DatabaseManager(object):
     def __init__(self):
-        printError("Connecting to database...")
+        printError(f"Connecting to database at {ConfigUtils.getConfig()['General']['DBPath']}...")
         self.db = sqlite3.connect(ConfigUtils.getConfig()['General']['DBPath'])
         self.cur = self.db.cursor()
         printError("Done")
@@ -211,6 +220,8 @@ class Operations(Enum):
     def editCalendar(self, data):
         # Expected: { 'uuid': ..., 'updates': { ... } }
 
+        self.createCalendarsTable()
+
         cal_uuid = ''
         if 'uuid' not in data:
             returnError(400, f"{self.name} requires input field 'uuid'")
@@ -228,6 +239,8 @@ class Operations(Enum):
     def editSchedule(self, data):
         # Expected: { 'uuid': ..., 'updates': { ... } }
         # Returns: { 'uuid': ..., 'cal_uuid': ..., 'name': ..., 'schedule': ... }
+
+        self.createSchedulesTable()
 
         sch_uuid = ''
         if 'uuid' in data:
@@ -247,6 +260,8 @@ class Operations(Enum):
         # Expected: { }
         # Returns: [ { 'uuid': ..., 'name': ... }, ... ]
 
+        self.createCalendarsTable()
+
         printError(f"Getting all calendars")
 
         results = self.getDBManager().get(CALENDARS_TABLE_NAME)
@@ -261,6 +276,8 @@ class Operations(Enum):
         # Expected: { 'cal_uuid': ... } OR
         #           { 'cal_name': ... }
         # Returns: [ { 'uuid': ..., 'cal_uuid': ..., 'name': ..., 'schedule': ... }, ... ]
+
+        self.createSchedulesTable()
 
         cal_uuid = self.getCalendarUUID(data)
 
@@ -277,6 +294,8 @@ class Operations(Enum):
         #           { 'cal_name': ... }
         # Returns: { 'uuid': ..., 'name': ... }
 
+        self.createCalendarsTable()
+
         cal_uuid = self.getCalendarUUID(data)
 
         results = self.getDBManager().get(CALENDARS_TABLE_NAME, [('UUID', cal_uuid)])
@@ -287,6 +306,8 @@ class Operations(Enum):
         # Expected: { 'uuid': ..., }
         # Returns: { 'uuid': ..., 'cal_uuid': ..., 'name': ..., 'schedule': ... }
  
+        self.createSchedulesTable()
+
         sch_uuid = ''
         if 'uuid' in data:
             sch_uuid = data['uuid']
@@ -303,16 +324,21 @@ def main():
     if len(sys.argv) > 1:
         op_type = sys.argv[1]
     else:
-        fields = cgi.FieldStorage()
+        query = urllib.parse.parse_qs(os.environ['QUERY_STRING'])
 
-        op_type = fields.getvalue('operation')
+        if not 'operation' in query:
+            printError(f"Missing 'operation' in query. Received query was '{os.environ['QUERY_STRING']}'")
+            op_type = None
+        else:
+            op_type = query['operation'][0]
 
     if not op_type:
         returnError(400, "<p>No operation type provided.</p>")
 
     data = sys.stdin.read()
     if not data:
-        returnError(400, "<p>No POST data sent.</p>")
+        # Receiving no POST data is not necessarily an error.
+        data = "{}"
     jdata = json.loads(data)
 
     printError(f"Received data = {data}")
