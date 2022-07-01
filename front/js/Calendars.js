@@ -191,7 +191,7 @@ function genCalendarsList(div_name) {
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
-function genSchedulesList(div_name) {
+function genSchedulesList(div_name, shared_uuids) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -238,7 +238,12 @@ function genSchedulesList(div_name) {
                 }
                 schedule_toggle.style.float = 'left'
 
-                schedule_toggle.onchange(); // Make sure that we start them off toggled
+                // Make sure that the toggles start being checked on if there is
+                //   at least one uuid being shared
+                if(shared_uuids.length == 0 || shared_uuids.find(i => (i === v["uuid"]) ))
+                {
+                    schedule_toggle.onchange();
+                }
 
                 schedule_div.appendChild(schedule_link)
                 schedule_div.appendChild(schedule_toggle)
@@ -295,8 +300,18 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
     var calendar_uuid = getQuery('uuid')
 
+    // If 'share' is provided, decode the base64 value and only enable the
+    //   schedules that are specified internally
+    var shared_uuids = []
+    if(hasQuery('share')) {
+        const share_b64 = getQuery('share')
+        var share_string = atob(share_b64)
+
+        shared_uuids = share_string.split(",")
+    }
+
     genViewCalendar(cal_div);
-    genSchedulesList(schedule_div)
+    genSchedulesList(schedule_div, shared_uuids)
 
     // Make sure that we adjust the height of the schedules list so that it lines
     //   up with the calendar's height
@@ -308,8 +323,37 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     const create_schedule_element = document.querySelector("#" + create_schedule_link);
     create_schedule_element.href += "?uuid=" + calendar_uuid;
 
-    // TODO: Support for sharing a specific view of a calendar?
-    //   Will require toggling-off all schedules that are not selected
+    // Add share button
+    const share_button = document.createElement('input')
+    share_button.type = "button"
+    share_button.value = "Share"
+    share_button.onclick = function() {
+        var to_share = ""
+
+        schedules_list_div.childNodes.forEach(div => {
+            const schedule_a = div.childNodes[0]
+            const schedule_input = div.childNodes[1]
+
+            if(schedule_input.checked()) {
+                var params = new URLSearchParams(schedule_a.search)
+                var schedule_uuid = params.get('uuid')
+
+                to_share += schedule_uuid + ","
+            }
+        })
+
+        // Strip off the last comma
+        to_share = to_share.substr(0, to_share.length - 1)
+
+        var to_share_encode = btoa(to_share)
+
+        // Replace the URL in the address bar so that it can be copied
+        //   TODO: Should we instead copy into the clipboard?
+        var share_url = window.location.href + "&share=" + to_share_encode
+        window.history.replaceState(null, null, share_url)
+    }
+
+    schedules_list_div.parentNode.appendChild(share_button)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
