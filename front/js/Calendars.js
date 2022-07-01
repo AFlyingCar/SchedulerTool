@@ -312,23 +312,6 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     //   Will require toggling-off all schedules that are not selected
 }
 
-
-////////////////////////////////////////////////////////////////////////////////
-
-function genForScheduleList(calendar_uuid, schedule_callback) {
-    const params = {
-        uuid: calendar_uuid
-    };
-
-    fetch('../cgi-bin/ScheduleTool.py?operation=GET_SCH', params)
-        .then(res => res.json())
-        .then(function(json) {
-            json.map((schedule) => {
-                schedule_callback(schedule);
-            });
-        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Utilities
 
