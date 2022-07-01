@@ -236,6 +236,9 @@ function genSchedulesList(div_name, shared_uuids) {
 
                     // TODO: Change whether this schedule is displayed
                 }
+                schedule_toggle.onclick = function() {
+                    schedule_toggle.onchange();
+                }
                 schedule_toggle.style.float = 'left'
 
                 // Make sure that the toggles start being checked on if there is
@@ -244,6 +247,8 @@ function genSchedulesList(div_name, shared_uuids) {
                 {
                     schedule_toggle.onchange();
                 }
+
+                schedule_div.id = v["uuid"]
 
                 schedule_div.appendChild(schedule_link)
                 schedule_div.appendChild(schedule_toggle)
