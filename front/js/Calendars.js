@@ -334,7 +334,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
             const schedule_a = div.childNodes[0]
             const schedule_input = div.childNodes[1]
 
-            if(schedule_input.checked()) {
+            if(schedule_input.checked) {
                 var params = new URLSearchParams(schedule_a.search)
                 var schedule_uuid = params.get('uuid')
 
@@ -349,7 +349,19 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
         // Replace the URL in the address bar so that it can be copied
         //   TODO: Should we instead copy into the clipboard?
-        var share_url = window.location.href + "&share=" + to_share_encode
+
+        // First make sure that we remove the existing share parameter if it
+        //   already exists
+        var share_url = function() {
+            var url_search_params = new URLSearchParams(window.location.search)
+            url_search_params.delete('share')
+
+            url_search_params.append('share', to_share_encode)
+
+            // Rebuild the URL from the window location
+            return window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + url_search_params
+        }()
+
         window.history.replaceState(null, null, share_url)
     }
 
