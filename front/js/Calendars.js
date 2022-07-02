@@ -11,15 +11,22 @@
 var schedule_tool_path = ''
 
 ////////////////////////////////////////////////////////////////////////////////
-// Calendar Generation Functions
+// Constants
 
-var day_names = [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ];
+// All days on the schedule/calendar
+const DAY_NAMES = [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ];
+
+// The number of time blocks on the schedule/calendar
+const NUM_BLOCKS = 24;
+
+////////////////////////////////////////////////////////////////////////////////
+// Calendar Generation Functions
 
 function genCalendarHeader(header_row, header_onclick) {
     header_row.insertCell(); // Empty cell for the time column
-    for(let i = 0; i < day_names.length; ++i) {
+    for(let i = 0; i < DAY_NAMES.length; ++i) {
         const td = header_row.insertCell();
-        td.appendChild(document.createTextNode(day_names[i]));
+        td.appendChild(document.createTextNode(DAY_NAMES[i]));
         td.onclick = function() {
             header_onclick(0, i)
         }
@@ -44,7 +51,7 @@ function genCalendar(div_name, cell_callback, header_onclick) {
     genCalendarHeader(header_row, header_onclick);
 
     // half-hour increments
-    for(let i = 0; i < 24; ++i) {
+    for(let i = 0; i < NUM_BLOCKS; ++i) {
         // The next row
         const tr = table.insertRow();
         const time_cell = tr.insertCell();
@@ -56,7 +63,7 @@ function genCalendar(div_name, cell_callback, header_onclick) {
             header_onclick(1, i)
         }
 
-        for(let j = 0; j < day_names.length; ++j) {
+        for(let j = 0; j < DAY_NAMES.length; ++j) {
             const td = tr.insertCell();
             if(!!cell_callback) {
                 var node = cell_callback(i, j)
@@ -375,6 +382,30 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Utilities
+
+// Will return an object containing the following information:
+//   The value of NUM_BLOCKS
+//   An array of 7 arrays of length NUM_BLOCKS
+function getScheduleState(schedule_div) {
+    var schedule_state = {
+        num_blocks: NUM_BLOCKS, // We should store this too, in case we change
+                                //  what NUM_BLOCKS is
+        day_info: []
+    }
+
+    for(let j = 0; j < DAY_NAMES.length; ++j) {
+        schedule_state.day_info[j] = []
+
+        for(let i = 0; i < NUM_BLOCKS; ++i) {
+            var cell = getCalendarCell(schedule_div, j + 1, i + 1);
+            var cell_option = cell.childNodes[0]
+
+            schedule_state.day_info[j][i] = cell_option.value;
+        }
+    }
+
+    return schedule_state;
+}
 
 function getCalendarCell(div_name, x, y) {
     return document.querySelector("div#" + div_name).querySelector("table").rows[y].cells[x];
