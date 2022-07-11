@@ -4,7 +4,7 @@ import sqlite3
 import json
 import sys
 import uuid
-import urllib
+import urllib.parse
 import os
 from enum import Enum, unique, auto
 
@@ -17,12 +17,12 @@ SCHEDULES_TABLE_NAME = "schedules"
 
 ConfigUtils.init()
 
-def getCommonHeaders() -> str:
+def getCommonHeaders(content_type: str) -> str:
     return '\r\n'.join([
-        "Content-type:text/html",
-        "Access-Control-Allow-Origin: *",
-        "Access-Control-Request-Headers: Content-Type",
-        "" # Make sure to have an empty one at the end so we always end with \r\n
+        f"Content-type:{content_type}",
+         "Access-Control-Allow-Origin: *",
+         "Access-Control-Request-Headers: Content-Type",
+         "" # Make sure to have an empty one at the end so we always end with \r\n
         ])
 
 def getHtml(body: str, status) -> str:
@@ -30,14 +30,14 @@ def getHtml(body: str, status) -> str:
     if status != None:
         status_str = f"Status:{status}\r\n"
 
-    return f"{getCommonHeaders()}{status_str}\r\n<html>{body}</html>"
+    return f"{getCommonHeaders('text/html')}{status_str}\r\n<html>{body}</html>"
 
 def getJson(data: str, status) -> str:
     status_str = ""
     if status != None:
         status_str = f"Status:{status}\r\n"
 
-    return f"{getCommonHeaders()}{status_str}\r\n{data}"
+    return f"{getCommonHeaders('text/json')}{status_str}\r\n{data}"
 
 def returnError(status: int, reason: str):
     print(getHtml(f"{reason}", status))
