@@ -161,11 +161,53 @@ function genCreateScheduleCalendar(div_name) {
 }
 
 function genEditScheduleCalendar(div_name) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+    var schedule_uuid = getQuery('uuid')
+
     // First create the calendar itself in its default state
     genCreateScheduleCalendar(div_name)
 
-    // TODO: Download the schedule we want to look at, and adjust the properties
-    //   for it
+    // Download this schedule's data
+
+    const getsch_options = {
+        method: 'POST',
+        body: JSON.stringify({ uuid: schedule_uuid }),
+        headers: { }
+    }
+    console.log("Fetching schedule data.")
+    fetch(schedule_tool_path + '?operation=GET_SCH', getsch_options)
+        .then(res => res.json())
+        .then(function(sch_json) {
+            console.log('genEditScheduleCalendar[PROPERTIES](' + div_name + ')');
+
+            // Set the schedule name based on the response from the server
+            const form_sch_name = document.querySelector("#sname");
+
+            form_sch_name.value = sch_json.name
+
+            return sch_json.schedule.replace(/'/g, '"')
+        })
+        .then(schedule_str => JSON.parse(schedule_str))
+        .then(function(schedule) {
+            // TODO: Do something with num_blocks
+            const num_blocks = schedule.num_blocks
+            const day_info = schedule.day_info
+
+            // For every day
+            day_info.forEach(function(day_schedule, i) {
+                // For every block in the day
+                day_schedule.forEach(function(block_availability, j) {
+                    var cell = getCalendarCell(div_name, i + 1, j + 1);
+                    var cell_option = cell.childNodes[0]
+
+                    cell_option.value = block_availability;
+                    cell_option.onchange()
+                })
+            })
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
 function genCalendarsList(div_name) {
