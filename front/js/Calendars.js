@@ -382,7 +382,7 @@ function submitEditSchedule(table_div) {
     fetch(schedule_tool_path + '?operation=EDIT_SCH', options)
         .then(res => res.json())
         .then(function(json) {
-            console.log('createSchedule')
+            console.log('Received response: ' + JSON.stringify(json))
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
