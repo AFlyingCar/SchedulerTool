@@ -188,6 +188,11 @@ function genEditScheduleCalendar(div_name) {
 
             form_sch_name.value = sch_json.name
 
+            // Set the back button based on the response from the server
+            const cal_uuid = sch_json.cal_uuid
+            const back_link = document.querySelector('#back_link')
+            back_link.href += '?uuid=' + cal_uuid
+
             return sch_json.schedule.replace(/'/g, '"')
         })
         .then(schedule_str => JSON.parse(schedule_str))
