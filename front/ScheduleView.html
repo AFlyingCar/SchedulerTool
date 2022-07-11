@@ -5,15 +5,15 @@
 
     <body onLoad="genCreateScheduleCalendar('table_div')">
         <div id="new_schedule_properties">
-            <form action="javascript:submitEditScheduleProperties()" name="Details Edit Form">
+            <form action="javascript:submitEditScheduleProperties('table_div')" name="Details Edit Form">
                 <p><label for="calendar_name">Schedule Name:</label>
-                <input type="text" name="calendar_name" id="cname">
+                <input type="text" name="schedule_name" id="sname">
 
-                <input value="Save" type="submit">
+                <div id="table_div"></div>
+
+                <input value="Save Changes" type="submit">
             </form>
         </div>
-
-        <div id="table_div"></div>
     </body>
 </html>
 

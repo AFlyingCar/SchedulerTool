@@ -106,8 +106,6 @@ function genViewCalendar(div_name) {
             form_cal_name.value = json['name']
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 
-    // TODO: Get schedule information for every schedule in the calendar
-
     genCalendar(div_name, function(time, day) {
         return document.createTextNode('TODO')
     })
@@ -175,7 +173,6 @@ function genCalendarsList(div_name) {
         method: 'POST',
         body: JSON.stringify({}),
         headers: {
-            'Content-Type': 'application/json'
         }
     }
 
@@ -221,6 +218,19 @@ function genSchedulesList(div_name, shared_uuids) {
             json.forEach(function(v, i) {
                 console.log("Received schedule '" + JSON.stringify(v) + "'")
 
+                const getsch_options = {
+                    method: 'POST',
+                    body: JSON.stringify({ uuid: v["uuid"] }),
+                    headers: { }
+                }
+                console.log("Fetching schedule data.")
+                var schedule_data;
+                fetch(schedule_tool_path + '?operation=GET_SCH', getsch_options)
+                    .then(res => res.json())
+                    .then(function(sch_json) {
+                        schedule_data = sch_json.schedule
+                    }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+
                 const schedules_list_div = document.querySelector("div#" + div_name);
 
                 // Container for holding the link to the schedule and the toggle check-box
@@ -242,6 +252,7 @@ function genSchedulesList(div_name, shared_uuids) {
                     schedule_toggle.checked = !schedule_toggle.checked
 
                     // TODO: Change whether this schedule is displayed
+                    console.log('Holding schedule data: ' + schedule_data)
                 }
                 schedule_toggle.onclick = function() {
                     schedule_toggle.onchange();
@@ -272,7 +283,7 @@ function submitEditCalendarProperties() {
     // TODO
 }
 
-function submitCreateSchedule() {
+function submitCreateSchedule(table_div) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -284,7 +295,11 @@ function submitCreateSchedule() {
 
     const options = {
         method: 'POST',
-        body: JSON.stringify({ cal_uuid: calendar_uuid, name: schedule_name.value }),
+        body: JSON.stringify({
+            cal_uuid: calendar_uuid,
+            name: schedule_name.value,
+            schedule: getScheduleState(table_div)
+        }),
         headers: {
         }
     }
@@ -297,8 +312,36 @@ function submitCreateSchedule() {
             window.location.replace('./CalendarView.html?uuid=' + calendar_uuid)
 
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+}
 
-    // TODO: Also submit the schedule data
+function submitEditSchedule(table_div) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var schedule_uuid = getQuery('uuid')
+
+    const schedule_name = document.querySelector("#sname");
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({
+            uuid: schedule_uuid,
+            updates: {
+                name: schedule_name.value,
+                schedule: getScheduleState(table_div)
+            }
+        }),
+        headers: {
+        }
+    }
+
+    fetch(schedule_tool_path + '?operation=EDIT_SCH', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('createSchedule')
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
