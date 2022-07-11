@@ -97,7 +97,7 @@ class DatabaseManager(object):
     def buildSetString(self, updates = {}):
         # updates = {column_name=value}
         if updates:
-            return "SET " + ', '.join([f'{name} = {self.sanitizeStr(expected)}' for name,value in updates])
+            return "SET " + ', '.join([f'{name} = {self.sanitizeStr(updates[name])}' for name in updates])
 
         return ""
 
@@ -110,7 +110,8 @@ class DatabaseManager(object):
         return self.cur.fetchall()
 
     def update(self, table_name, conditions, updates = {}):
-        self.execQuery(f'UPDATE {self.sanitizeStr(table_name)} SET {self.buildSetString(updates)} WHERE {self.buildConditionString(conditions)}')
+        self.execQuery(f'UPDATE {self.sanitizeStr(table_name)} {self.buildSetString(updates)} {self.buildConditionString(conditions)}')
+        self.save()
 
     def save(self):
         self.db.commit()
@@ -198,14 +199,18 @@ class Operations(Enum):
             returnError(400, f"<p>{self.name} requires input either field 'cal_uuid' or 'cal_name'</p>")
 
     def createSchedule(self, data):
-        # Expected: { 'cal_uuid': ..., 'name': ... } OR
-        #           { 'cal_name': ..., 'name': ... }
-        # Returns: { 'uuid': ..., 'cal_uuid': ..., 'name': ..., 'schedule': "" }
+        # Expected: { 'cal_uuid': ..., 'name': ..., 'schedule': ... } OR
+        #           { 'cal_name': ..., 'name': ..., 'schedule': ... }
+        # Returns: { 'uuid': ..., 'cal_uuid': ..., 'name': ..., 'schedule': ... }
 
         sch_name = ''
         if 'name' not in data:
             returnError(400, f"{self.name} requires input field 'name'")
+        if 'schedule' not in data:
+            returnError(400, f"{self.name} requires input field 'schedule'")
+
         sch_name = data['name']
+        sch_data = data['schedule']
 
         cal_uuid = self.getCalendarUUID(data)
 
@@ -213,9 +218,9 @@ class Operations(Enum):
 
         printError("Creating a schedule for calendar {cal_uuid}")
         self.createSchedulesTable()
-        self.getDBManager().insert(SCHEDULES_TABLE_NAME, [sch_uuid, cal_uuid, sch_name, ""])
+        self.getDBManager().insert(SCHEDULES_TABLE_NAME, [sch_uuid, cal_uuid, sch_name, str(sch_data)])
 
-        returnJson(200, json.dumps({'uuid': sch_uuid, 'cal_uuid': cal_uuid, 'name': sch_name, 'schedule': ""}))
+        returnJson(200, json.dumps({'uuid': sch_uuid, 'cal_uuid': cal_uuid, 'name': sch_name, 'schedule': str(sch_data)}))
 
     def editCalendar(self, data):
         # Expected: { 'uuid': ..., 'updates': { ... } }
@@ -248,13 +253,15 @@ class Operations(Enum):
         else:
             returnError(400, f"{self.name} requires input field 'uuid' or input field 'name'")
 
-        updates = data['updates']
+        # We need to do this to make sure that the expected 'day_info' field
+        #   doesn't get treated like a dict, but instead as just raw data
+        updates = {k: str(data['updates'][k]) for k in data['updates'] }
 
         if updates:
             printError(f"Updating the following columns for schedule '{sch_uuid}': {updates}")
             self.getDBManager().update(SCHEDULES_TABLE_NAME, [('UUID', sch_uuid)], updates)
 
-        returnJson(200, json.dumps({'uuid': sch_uuid, 'cal_uuid': cal_uuid, 'name': sch_name, 'schedule': ""}))
+        return self.getSchedule(data)
 
     def listCalendars(self, data):
         # Expected: { }
