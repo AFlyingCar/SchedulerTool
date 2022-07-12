@@ -118,21 +118,6 @@ function genViewCalendar(div_name, schedules_promise) {
                 const sch_schedule = schedule.schedule;
                 const sch_day_info = sch_schedule.day_info;
 
-                // Here is where we either show that they are available, or not
-                //   TODO: Should we have a way of toggling between showing 
-                //     availability and unavailability?
-                //     In other words: Mode 1 show only those who are available/tentative
-                //                     Mode 2 show only those who are unavailable/tentative
-                //   Or maybe a better idea: Check boxes to show All of:
-                //     Available
-                //     Unavailable
-                //     Tentative
-                //   And allow toggling these on/off
-                if(sch_day_info[day][time] === "Un-Available") {
-                    // Skip unavailables for now
-                    return;
-                }
-
                 const sch_color_picker = document.getElementById('S' + sch_uuid + '_color')
 
                 const sch_color_div = document.createElement('div')
@@ -520,6 +505,51 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
             }
         })
         return schedules;
+    })
+    .then(function(schedules) {
+        ////////////////////////////////////////////////////////////////////////
+        // Set up the checkboxes for toggling which views to see
+        var toggle_show = function(view_type, toggle) {
+            toggle.checked = !toggle.checked
+
+            schedules.forEach(function(sch, i) {
+                // Get all schedule cell nodes
+                var color_cells = document.querySelectorAll('[id^=schnode_' + sch.uuid + '_')
+
+                color_cells.forEach(function(cell, i) {
+                    const content = cell.childNodes[0].textContent
+
+                    // Only affect the cells if the view type matches the type of cell
+                    if(content === view_type) {
+                        if(toggle.checked) {
+                            cell.style.display = 'block'
+                        } else {
+                            cell.style.display = 'none'
+                        }
+                    }
+                })
+
+            })
+        }
+
+        const show_available_toggle = document.getElementById("show_available_toggle")
+        show_available_toggle.onchange = function() {
+            toggle_show("Available", show_available_toggle)
+        }
+        show_available_toggle.onclick = show_available_toggle.onchange
+
+        const show_unavailable_toggle = document.getElementById("show_unavailable_toggle")
+        show_unavailable_toggle.onchange = function() {
+            toggle_show("Un-Available", show_unavailable_toggle)
+        }
+        show_unavailable_toggle.onclick = show_unavailable_toggle.onchange
+
+        const show_tentative_toggle = document.getElementById("show_tentative_toggle")
+        show_tentative_toggle.onchange = function() {
+            toggle_show("Tentative", show_tentative_toggle)
+        }
+        show_tentative_toggle.onclick = show_tentative_toggle.onchange
+        ////////////////////////////////////////////////////////////////////////
     })
 
     // Make sure that the create schedule element can also point at the right page
