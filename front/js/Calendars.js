@@ -474,11 +474,14 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     // If 'share' is provided, decode the base64 value and only enable the
     //   schedules that are specified internally
     var shared_uuids = []
+    var shared_data = {}
     if(hasQuery('share')) {
         const share_b64 = getQuery('share')
         var share_string = atob(share_b64)
 
-        shared_uuids = share_string.split(",")
+        shared_data = deserializeSharedCalendarViewData(share_string)
+
+        shared_uuids = shared_data.schedules.map(data => data.uuid)
     }
 
     var schedules_promise = genSchedulesList(schedule_div, shared_uuids)
@@ -550,7 +553,28 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         }
         show_tentative_toggle.onclick = show_tentative_toggle.onchange
         ////////////////////////////////////////////////////////////////////////
+
+        if(!shared_data.view_toggles.available) {
+            show_available_toggle.onclick()
+        }
+        if(!shared_data.view_toggles.unavailable) {
+            show_unavailable_toggle.onclick()
+        }
+        if(!shared_data.view_toggles.tentative) {
+            show_tentative_toggle.onclick()
+        }
+
+        return schedules
     })
+    .then(function(schedules) {
+        // Run each onchange now so that we ensure that the colors are up to date
+        shared_data.schedules.forEach(function(schedule, i) {
+            const sch_color_picker = document.getElementById('S' + schedule.uuid + '_color')
+            sch_color_picker.value = schedule.color
+            sch_color_picker.onchange()
+        })
+    })
+
 
     // Make sure that the create schedule element can also point at the right page
     const create_schedule_element = document.querySelector("#" + create_schedule_link);
@@ -561,23 +585,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     share_button.type = "button"
     share_button.value = "Share"
     share_button.onclick = function() {
-        var to_share = ""
-
-        schedules_list_div.childNodes.forEach(div => {
-            const schedule_a = div.childNodes[0]
-            const schedule_input = div.childNodes[1]
-
-            if(schedule_input.checked) {
-                var params = new URLSearchParams(schedule_a.search)
-                var schedule_uuid = params.get('uuid')
-
-                to_share += schedule_uuid + ","
-            }
-        })
-
-        // Strip off the last comma
-        to_share = to_share.substr(0, to_share.length - 1)
-
+        var to_share = serializeSharedCalendarViewData(schedules_list_div)
         var to_share_encode = btoa(to_share)
 
         // Replace the URL in the address bar so that it can be copied
@@ -603,6 +611,44 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Utilities
+
+function serializeSharedCalendarViewData(schedules_list_div) {
+    var to_share = {
+        schedules: [ ], // { uuid, color }
+        view_toggles: {
+            available: true,
+            unavailable: true,
+            tentative: true
+        }
+    }
+
+    schedules_list_div.childNodes.forEach(div => {
+        const schedule_a = div.childNodes[0]
+        const schedule_input = div.childNodes[1]
+        // [2] == <br>
+        const schedule_color = div.childNodes[3]
+
+        if(schedule_input.checked) {
+            var params = new URLSearchParams(schedule_a.search)
+            var schedule_uuid = params.get('uuid')
+
+            to_share.schedules.push({
+                uuid: schedule_uuid,
+                color: schedule_color.value
+            })
+        }
+    })
+
+    to_share.view_toggles.available = document.getElementById("show_available_toggle").checked
+    to_share.view_toggles.unavailable = document.getElementById("show_unavailable_toggle").checked
+    to_share.view_toggles.tentative = document.getElementById("show_tentative_toggle").checked
+
+    return JSON.stringify(to_share)
+}
+
+function deserializeSharedCalendarViewData(shared_data_str) {
+    return JSON.parse(shared_data_str)
+}
 
 // Will return an object containing the following information:
 //   The value of NUM_BLOCKS
