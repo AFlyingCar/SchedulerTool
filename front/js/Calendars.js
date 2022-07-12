@@ -151,9 +151,11 @@ function genViewCalendar(div_name, schedules_promise) {
 
         // Run each onchange now so that we ensure that the colors are up to date
         schedules.forEach(function(schedule, i) {
-            const sch_color_picker = document.getElementById('S' + schedule + '_color')
+            const sch_color_picker = document.getElementById('S' + schedule.uuid + '_color')
             sch_color_picker.onchange()
         })
+
+        return schedules
     })
 }
 
@@ -350,24 +352,30 @@ function genSchedulesList(div_name, shared_uuids) {
                 const schedule_toggle = document.createElement('input')
 
                 schedule_toggle.type = 'checkbox'
+                schedule_toggle.id = 'S' + v.uuid + '_toggle'
                 schedule_toggle.onchange = function() {
                     // Make sure we represent the change
                     schedule_toggle.checked = !schedule_toggle.checked
 
                     // TODO: Change whether this schedule is displayed
                     console.log('Holding schedule data: ' + schedule_data)
+
+                    // Get all schedule cell nodes
+                    var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
+
+                    color_cells.forEach(function(cell, i) {
+                        if(schedule_toggle.checked) {
+                            cell.style.display = 'block'
+                        } else {
+                            cell.style.display = 'none'
+                        }
+                    })
                 }
                 schedule_toggle.onclick = function() {
                     schedule_toggle.onchange();
                 }
                 schedule_toggle.style.float = 'left'
-
-                // Make sure that the toggles start being checked on if there is
-                //   at least one uuid being shared
-                if(shared_uuids.length == 0 || shared_uuids.find(i => (i === v["uuid"]) ))
-                {
-                    schedule_toggle.onchange();
-                }
+                schedule_toggle.checked = true
 
                 // Create a color picker to choose what color we should represent this schedule with
                 const schedule_color_picker = document.createElement('input')
@@ -498,8 +506,20 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
     // Wait until the schedules and calendar are all done before we calculate
     //   the height
-    schedules_promise.then(function() {
+    schedules_promise.then(function(schedules) {
         schedules_list_div.style.height = cal_table_div.clientHeight;
+        return schedules
+    })
+    .then(function(schedules) {
+        schedules.forEach(function(sch, i) {
+            if(shared_uuids.length > 0 && shared_uuids.find(uuid => (uuid === sch.uuid) ) === undefined)
+            {
+                console.log("Disabling " + sch.uuid)
+                const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
+                sch_toggle.onclick()
+            }
+        })
+        return schedules;
     })
 
     // Make sure that the create schedule element can also point at the right page
