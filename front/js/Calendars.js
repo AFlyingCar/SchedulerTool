@@ -313,10 +313,22 @@ function genSchedulesList(div_name, shared_uuids) {
                     schedule_toggle.onchange();
                 }
 
+                // Create a color picker to choose what color we should represent this schedule with
+                const schedule_color_picker = document.createElement('input')
+                schedule_color_picker.type = "color";
+                schedule_color_picker.id = v["uuid"] + ":color";
+                schedule_color_picker.value = getUniqueRandomColor(128) // TODO
+                schedule_color_picker.onchange = function() {
+                    console.log('color_picker value set to ' + schedule_color_picker.value)
+                }
+                schedule_color_picker.onchange()
+
                 schedule_div.id = v["uuid"]
 
                 schedule_div.appendChild(schedule_link)
                 schedule_div.appendChild(schedule_toggle)
+                schedule_div.appendChild(document.createElement('br'))
+                schedule_div.appendChild(schedule_color_picker)
 
                 schedules_list_div.appendChild(schedule_div)
             })
@@ -509,5 +521,29 @@ function hasQuery(query_name) {
 function getQuery(query_name) {
     const params = new URLSearchParams(window.location.search)
     return params.get(query_name)
+}
+
+// Code from https://stackoverflow.com/a/17373688
+function getRandomColor(brightness) {
+    function randomChannel(brightness){
+        var r = 255-brightness;
+        var n = 0|((Math.random() * r) + brightness);
+        var s = n.toString(16);
+        return (s.length==1) ? '0'+s : s;
+    }
+    return '#' + randomChannel(brightness) + randomChannel(brightness) + randomChannel(brightness);
+}
+
+var PREVIOUSLY_CHOSEN_COLORS = []
+function getUniqueRandomColor(brightness) {
+    var color = "#000000";
+
+    do {
+        color = getRandomColor(brightness);
+    } while(PREVIOUSLY_CHOSEN_COLORS.includes(color));
+
+    PREVIOUSLY_CHOSEN_COLORS.push(color);
+
+    return color;
 }
 
