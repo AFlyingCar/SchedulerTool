@@ -78,7 +78,7 @@ function genCalendar(div_name, cell_callback, header_onclick) {
     table_div.append(table)
 }
 
-function genViewCalendar(div_name) {
+function genViewCalendar(div_name, schedules_promise) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -106,8 +106,54 @@ function genViewCalendar(div_name) {
             form_cal_name.value = json['name']
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 
-    genCalendar(div_name, function(time, day) {
-        return document.createTextNode('TODO')
+    schedules_promise.then(function(schedules) {
+        genCalendar(div_name, function(time, day) {
+            const cell_div = document.createElement('div')
+            // ID = calcell_{TIME}_{DAY}
+            cell_div.id = "calcell_" + time + "_" + day;
+
+            schedules.forEach(function(schedule, i) {
+                console.log(JSON.stringify(schedule))
+                const sch_uuid = schedule.uuid;
+                const sch_schedule = schedule.schedule;
+                const sch_day_info = sch_schedule.day_info;
+
+                // Here is where we either show that they are available, or not
+                //   TODO: Should we have a way of toggling between showing 
+                //     availability and unavailability?
+                //     In other words: Mode 1 show only those who are available/tentative
+                //                     Mode 2 show only those who are unavailable/tentative
+                //   Or maybe a better idea: Check boxes to show All of:
+                //     Available
+                //     Unavailable
+                //     Tentative
+                //   And allow toggling these on/off
+                if(sch_day_info[day][time] === "Un-Available") {
+                    // Skip unavailables for now
+                    return;
+                }
+
+                const sch_color_picker = document.getElementById('S' + sch_uuid + '_color')
+
+                const sch_color_div = document.createElement('div')
+
+                // ID = schnode_{UUID}_{TIME}_{DAY}
+                sch_color_div.id = "schnode_" + sch_uuid + "_" + time + "_" + day;
+                sch_color_div.style.backgroundColor = sch_color_picker.value
+
+                sch_color_div.appendChild(document.createTextNode(sch_day_info[day][time]))
+
+                cell_div.appendChild(sch_color_div)
+            })
+
+            return cell_div;
+        })
+
+        // Run each onchange now so that we ensure that the colors are up to date
+        schedules.forEach(function(schedule, i) {
+            const sch_color_picker = document.getElementById('S' + schedule + '_color')
+            sch_color_picker.onchange()
+        })
     })
 }
 
@@ -257,10 +303,20 @@ function genSchedulesList(div_name, shared_uuids) {
         }
     }
 
-    fetch(schedule_tool_path + '?operation=LIST_SCH', options)
+    return fetch(schedule_tool_path + '?operation=LIST_SCH', options)
         .then(res => res.json())
         .then(function(json) {
             console.log('getSchedulesList')
+
+            schedules = json.map(sch => { return { uuid: sch.uuid, schedule: sch.schedule } })
+                            .map(sch => { return { uuid: sch.uuid, schedule: sch.schedule.replace(/'/g, '"') } })
+                            .map(sch => { return { uuid: sch.uuid, schedule: (sch.schedule.length === 0 ? "{\"num_blocks\": 24, \"day_info\": []}" : sch.schedule ) } })
+                            .map(sch => {
+                                console.log('Parsing ' + sch.schedule)
+                                return sch
+                            })
+                            .map(sch => { return { uuid: sch.uuid, schedule: JSON.parse(sch.schedule) } });
+            console.log('Mapped schedules to ' + JSON.stringify(schedules))
 
             json.forEach(function(v, i) {
                 console.log("Received schedule '" + JSON.stringify(v) + "'")
@@ -316,14 +372,20 @@ function genSchedulesList(div_name, shared_uuids) {
                 // Create a color picker to choose what color we should represent this schedule with
                 const schedule_color_picker = document.createElement('input')
                 schedule_color_picker.type = "color";
-                schedule_color_picker.id = v["uuid"] + ":color";
+                schedule_color_picker.id = 'S' + v["uuid"] + "_color";
                 schedule_color_picker.value = getUniqueRandomColor(128) // TODO
                 schedule_color_picker.onchange = function() {
-                    console.log('color_picker value set to ' + schedule_color_picker.value)
-                }
-                schedule_color_picker.onchange()
+                    console.log(v.uuid + ' color set to ' + schedule_color_picker.value)
 
-                schedule_div.id = v["uuid"]
+                    // Get all schedule cell nodes
+                    var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
+
+                    color_cells.forEach(function(cell, i) {
+                        cell.style.backgroundColor = schedule_color_picker.value;
+                    })
+                }
+
+                schedule_div.id = 'S' + v["uuid"]
 
                 schedule_div.appendChild(schedule_link)
                 schedule_div.appendChild(schedule_toggle)
@@ -332,6 +394,8 @@ function genSchedulesList(div_name, shared_uuids) {
 
                 schedules_list_div.appendChild(schedule_div)
             })
+
+            return schedules;
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
@@ -424,14 +488,19 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         shared_uuids = share_string.split(",")
     }
 
-    genViewCalendar(cal_div);
-    genSchedulesList(schedule_div, shared_uuids)
+    var schedules_promise = genSchedulesList(schedule_div, shared_uuids)
+    genViewCalendar(cal_div, schedules_promise);
 
     // Make sure that we adjust the height of the schedules list so that it lines
     //   up with the calendar's height
     const cal_table_div = document.querySelector("div#" + cal_div);
     const schedules_list_div = document.querySelector("div#" + schedule_div);
-    schedules_list_div.style.height = cal_table_div.clientHeight;
+
+    // Wait until the schedules and calendar are all done before we calculate
+    //   the height
+    schedules_promise.then(function() {
+        schedules_list_div.style.height = cal_table_div.clientHeight;
+    })
 
     // Make sure that the create schedule element can also point at the right page
     const create_schedule_element = document.querySelector("#" + create_schedule_link);
