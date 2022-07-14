@@ -335,6 +335,18 @@ function genSchedulesList(div_name) {
                     var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
 
                     color_cells.forEach(function(cell, i) {
+                        // First: Check what the cell's view type is, and only
+                        //   change how it's displayed if that view-type is
+                        //   actually enabled
+                        const content = cell.childNodes[0].textContent
+
+                        // Only affect the cells if the view type matches the type of cell
+                        const show_toggle = getShowToggleForViewType(content)
+                        if(!show_toggle.checked) {
+                            // If it's not enabled, then don't change anything
+                            return;
+                        }
+
                         if(schedule_toggle.checked) {
                             cell.style.display = 'block'
                         } else {
@@ -687,6 +699,19 @@ function hasQuery(query_name) {
 function getQuery(query_name) {
     const params = new URLSearchParams(window.location.search)
     return params.get(query_name)
+}
+
+function getShowToggleForViewType(view_type) {
+    // Add more view-types as necessary
+    if(view_type === "Available") {
+        return document.getElementById("show_available_toggle")
+    } else if(view_type === "Un-Available") {
+        return document.getElementById("show_unavailable_toggle")
+    } else if(view_type === "Tentative") {
+        return document.getElementById("show_tentative_toggle")
+    } else {
+        return undefined
+    }
 }
 
 // Code from https://stackoverflow.com/a/17373688
