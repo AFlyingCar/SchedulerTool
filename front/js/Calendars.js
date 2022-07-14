@@ -511,6 +511,13 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
             toggle.checked = !toggle.checked
 
             schedules.forEach(function(sch, i) {
+                // First, check: is this schedule enabled?
+                //   If not, then skip over it
+                const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
+                if(!sch_toggle.checked) {
+                    return;
+                }
+
                 // Get all schedule cell nodes
                 var color_cells = document.querySelectorAll('[id^=schnode_' + sch.uuid + '_')
 
