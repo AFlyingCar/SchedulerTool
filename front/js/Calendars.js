@@ -472,11 +472,13 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     // If 'share' is provided, decode the base64 value and only enable the
     //   schedules that are specified internally
     var shared_data = {}
+    var has_shared = false
     if(hasQuery('share')) {
         const share_b64 = getQuery('share')
         var share_string = atob(share_b64)
 
         shared_data = deserializeSharedCalendarViewData(share_string)
+        has_shared = true
     }
 
     var schedules_promise = genSchedulesList(schedule_div)
@@ -495,7 +497,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     })
     .then(function(schedules) {
         // Skip disabling the non-shared schedules if there is no 'share' param
-        if(shared_data.schedules.length === 0) {
+        if(!has_shared || shared_data.schedules.length === 0) {
             return schedules;
         }
 
@@ -568,25 +570,33 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         show_tentative_toggle.onclick = show_tentative_toggle.onchange
         ////////////////////////////////////////////////////////////////////////
 
-        if(!shared_data.view_toggles.available) {
-            show_available_toggle.onclick()
-        }
-        if(!shared_data.view_toggles.unavailable) {
-            show_unavailable_toggle.onclick()
-        }
-        if(!shared_data.view_toggles.tentative) {
-            show_tentative_toggle.onclick()
+        if(has_shared) {
+            if(!shared_data.view_toggles.available) {
+                show_available_toggle.onclick()
+            }
+            if(!shared_data.view_toggles.unavailable) {
+                show_unavailable_toggle.onclick()
+            }
+            if(!shared_data.view_toggles.tentative) {
+                show_tentative_toggle.onclick()
+            }
         }
 
         return schedules
     })
     .then(function(schedules) {
+        if(!has_shared) {
+            return schedules;
+        }
+
         // Run each onchange now so that we ensure that the colors are up to date
         shared_data.schedules.forEach(function(schedule, i) {
             const sch_color_picker = document.getElementById('S' + schedule.uuid + '_color')
             sch_color_picker.value = schedule.color
             sch_color_picker.onchange()
         })
+
+        return schedules;
     })
 
 
