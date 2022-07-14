@@ -275,7 +275,7 @@ function genCalendarsList(div_name) {
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
-function genSchedulesList(div_name, shared_uuids) {
+function genSchedulesList(div_name) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -484,7 +484,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         shared_uuids = shared_data.schedules.map(data => data.uuid)
     }
 
-    var schedules_promise = genSchedulesList(schedule_div, shared_uuids)
+    var schedules_promise = genSchedulesList(schedule_div)
     genViewCalendar(cal_div, schedules_promise);
 
     // Make sure that we adjust the height of the schedules list so that it lines
