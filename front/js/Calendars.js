@@ -113,7 +113,6 @@ function genViewCalendar(div_name, schedules_promise) {
             cell_div.id = "calcell_" + time + "_" + day;
 
             schedules.forEach(function(schedule, i) {
-                console.log(JSON.stringify(schedule))
                 const sch_uuid = schedule.uuid;
                 const sch_schedule = schedule.schedule;
                 const sch_day_info = sch_schedule.day_info;
@@ -293,21 +292,11 @@ function genSchedulesList(div_name) {
     return fetch(schedule_tool_path + '?operation=LIST_SCH', options)
         .then(res => res.json())
         .then(function(json) {
-            console.log('getSchedulesList')
-
             schedules = json.map(sch => { return { uuid: sch.uuid, schedule: sch.schedule } })
                             .map(sch => { return { uuid: sch.uuid, schedule: sch.schedule.replace(/'/g, '"') } })
                             .map(sch => { return { uuid: sch.uuid, schedule: (sch.schedule.length === 0 ? "{\"num_blocks\": 24, \"day_info\": []}" : sch.schedule ) } })
-                            .map(sch => {
-                                console.log('Parsing ' + sch.schedule)
-                                return sch
-                            })
                             .map(sch => { return { uuid: sch.uuid, schedule: JSON.parse(sch.schedule) } });
-            console.log('Mapped schedules to ' + JSON.stringify(schedules))
-
             json.forEach(function(v, i) {
-                console.log("Received schedule '" + JSON.stringify(v) + "'")
-
                 const getsch_options = {
                     method: 'POST',
                     body: JSON.stringify({ uuid: v["uuid"] }),
@@ -341,9 +330,6 @@ function genSchedulesList(div_name) {
                 schedule_toggle.onchange = function() {
                     // Make sure we represent the change
                     schedule_toggle.checked = !schedule_toggle.checked
-
-                    // TODO: Change whether this schedule is displayed
-                    console.log('Holding schedule data: ' + schedule_data)
 
                     // Get all schedule cell nodes
                     var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
@@ -473,15 +459,12 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
     // If 'share' is provided, decode the base64 value and only enable the
     //   schedules that are specified internally
-    var shared_uuids = []
     var shared_data = {}
     if(hasQuery('share')) {
         const share_b64 = getQuery('share')
         var share_string = atob(share_b64)
 
         shared_data = deserializeSharedCalendarViewData(share_string)
-
-        shared_uuids = shared_data.schedules.map(data => data.uuid)
     }
 
     var schedules_promise = genSchedulesList(schedule_div)
@@ -499,11 +482,23 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         return schedules
     })
     .then(function(schedules) {
+        // Skip disabling the non-shared schedules if there is no 'share' param
+        if(shared_data.schedules.length === 0) {
+            return schedules;
+        }
+
+        // Go over each schedule, and disable it if it isn't enabled in the
+        //   shared list
         schedules.forEach(function(sch, i) {
-            if(shared_uuids.length > 0 && shared_uuids.find(uuid => (uuid === sch.uuid) ) === undefined)
-            {
-                console.log("Disabling " + sch.uuid)
+            var shared_sch = shared_data.schedules.find(sch_data => (sch_data.uuid === sch.uuid) )
+            if(shared_sch) {
                 const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
+                if(!shared_sch.enabled) {
+                    // Only disable the schedule if it is not enabled
+                    sch_toggle.onclick()
+                }
+            } else {
+                // Disable the schedule if it isn't found
                 sch_toggle.onclick()
             }
         })
@@ -614,7 +609,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
 function serializeSharedCalendarViewData(schedules_list_div) {
     var to_share = {
-        schedules: [ ], // { uuid, color }
+        schedules: [ ], // { uuid, enabled, color }
         view_toggles: {
             available: true,
             unavailable: true,
@@ -628,15 +623,14 @@ function serializeSharedCalendarViewData(schedules_list_div) {
         // [2] == <br>
         const schedule_color = div.childNodes[3]
 
-        if(schedule_input.checked) {
-            var params = new URLSearchParams(schedule_a.search)
-            var schedule_uuid = params.get('uuid')
+        var params = new URLSearchParams(schedule_a.search)
+        var schedule_uuid = params.get('uuid')
 
-            to_share.schedules.push({
-                uuid: schedule_uuid,
-                color: schedule_color.value
-            })
-        }
+        to_share.schedules.push({
+            uuid: schedule_uuid,
+            enabled: schedule_input.checked,
+            color: schedule_color.value
+        })
     })
 
     to_share.view_toggles.available = document.getElementById("show_available_toggle").checked
