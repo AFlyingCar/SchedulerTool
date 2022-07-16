@@ -78,7 +78,7 @@ function genCalendar(div_name, cell_callback, header_onclick) {
     table_div.append(table)
 }
 
-function genViewCalendar(div_name) {
+function genViewCalendar(div_name, schedules_promise) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -106,10 +106,40 @@ function genViewCalendar(div_name) {
             form_cal_name.value = json['name']
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 
-    // TODO: Get schedule information for every schedule in the calendar
+    schedules_promise.then(function(schedules) {
+        genCalendar(div_name, function(time, day) {
+            const cell_div = document.createElement('div')
+            // ID = calcell_{TIME}_{DAY}
+            cell_div.id = "calcell_" + time + "_" + day;
 
-    genCalendar(div_name, function(time, day) {
-        return document.createTextNode('TODO')
+            schedules.forEach(function(schedule, i) {
+                const sch_uuid = schedule.uuid;
+                const sch_schedule = schedule.schedule;
+                const sch_day_info = sch_schedule.day_info;
+
+                const sch_color_picker = document.getElementById('S' + sch_uuid + '_color')
+
+                const sch_color_div = document.createElement('div')
+
+                // ID = schnode_{UUID}_{TIME}_{DAY}
+                sch_color_div.id = "schnode_" + sch_uuid + "_" + time + "_" + day;
+                sch_color_div.style.backgroundColor = sch_color_picker.value
+
+                sch_color_div.appendChild(document.createTextNode(sch_day_info[day][time]))
+
+                cell_div.appendChild(sch_color_div)
+            })
+
+            return cell_div;
+        })
+
+        // Run each onchange now so that we ensure that the colors are up to date
+        schedules.forEach(function(schedule, i) {
+            const sch_color_picker = document.getElementById('S' + schedule.uuid + '_color')
+            sch_color_picker.onchange()
+        })
+
+        return schedules
     })
 }
 
@@ -163,11 +193,58 @@ function genCreateScheduleCalendar(div_name) {
 }
 
 function genEditScheduleCalendar(div_name) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+    var schedule_uuid = getQuery('uuid')
+
     // First create the calendar itself in its default state
     genCreateScheduleCalendar(div_name)
 
-    // TODO: Download the schedule we want to look at, and adjust the properties
-    //   for it
+    // Download this schedule's data
+
+    const getsch_options = {
+        method: 'POST',
+        body: JSON.stringify({ uuid: schedule_uuid }),
+        headers: { }
+    }
+    console.log("Fetching schedule data.")
+    fetch(schedule_tool_path + '?operation=GET_SCH', getsch_options)
+        .then(res => res.json())
+        .then(function(sch_json) {
+            console.log('genEditScheduleCalendar[PROPERTIES](' + div_name + ')');
+
+            // Set the schedule name based on the response from the server
+            const form_sch_name = document.querySelector("#sname");
+
+            form_sch_name.value = sch_json.name
+
+            // Set the back button based on the response from the server
+            const cal_uuid = sch_json.cal_uuid
+            const back_link = document.querySelector('#back_link')
+            back_link.href += '?uuid=' + cal_uuid
+
+            return sch_json.schedule.replace(/'/g, '"')
+        })
+        .then(schedule_str => JSON.parse(schedule_str))
+        .then(function(schedule) {
+            // TODO: Do something with num_blocks
+            const num_blocks = schedule.num_blocks
+            const day_info = schedule.day_info
+
+            // For every day
+            day_info.forEach(function(day_schedule, i) {
+                // For every block in the day
+                day_schedule.forEach(function(block_availability, j) {
+                    var cell = getCalendarCell(div_name, i + 1, j + 1);
+                    var cell_option = cell.childNodes[0]
+
+                    cell_option.value = block_availability;
+                    cell_option.onchange()
+                })
+            })
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
 function genCalendarsList(div_name) {
@@ -175,7 +252,6 @@ function genCalendarsList(div_name) {
         method: 'POST',
         body: JSON.stringify({}),
         headers: {
-            'Content-Type': 'application/json'
         }
     }
 
@@ -198,7 +274,7 @@ function genCalendarsList(div_name) {
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
-function genSchedulesList(div_name, shared_uuids) {
+function genSchedulesList(div_name) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -213,13 +289,26 @@ function genSchedulesList(div_name, shared_uuids) {
         }
     }
 
-    fetch(schedule_tool_path + '?operation=LIST_SCH', options)
+    return fetch(schedule_tool_path + '?operation=LIST_SCH', options)
         .then(res => res.json())
         .then(function(json) {
-            console.log('getSchedulesList')
-
+            schedules = json.map(sch => { return { uuid: sch.uuid, schedule: sch.schedule } })
+                            .map(sch => { return { uuid: sch.uuid, schedule: sch.schedule.replace(/'/g, '"') } })
+                            .map(sch => { return { uuid: sch.uuid, schedule: (sch.schedule.length === 0 ? "{\"num_blocks\": 24, \"day_info\": []}" : sch.schedule ) } })
+                            .map(sch => { return { uuid: sch.uuid, schedule: JSON.parse(sch.schedule) } });
             json.forEach(function(v, i) {
-                console.log("Received schedule '" + JSON.stringify(v) + "'")
+                const getsch_options = {
+                    method: 'POST',
+                    body: JSON.stringify({ uuid: v["uuid"] }),
+                    headers: { }
+                }
+                console.log("Fetching schedule data.")
+                var schedule_data;
+                fetch(schedule_tool_path + '?operation=GET_SCH', getsch_options)
+                    .then(res => res.json())
+                    .then(function(sch_json) {
+                        schedule_data = sch_json.schedule
+                    }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 
                 const schedules_list_div = document.querySelector("div#" + div_name);
 
@@ -237,31 +326,67 @@ function genSchedulesList(div_name, shared_uuids) {
                 const schedule_toggle = document.createElement('input')
 
                 schedule_toggle.type = 'checkbox'
+                schedule_toggle.id = 'S' + v.uuid + '_toggle'
                 schedule_toggle.onchange = function() {
                     // Make sure we represent the change
                     schedule_toggle.checked = !schedule_toggle.checked
 
-                    // TODO: Change whether this schedule is displayed
+                    // Get all schedule cell nodes
+                    var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
+
+                    color_cells.forEach(function(cell, i) {
+                        // First: Check what the cell's view type is, and only
+                        //   change how it's displayed if that view-type is
+                        //   actually enabled
+                        const content = cell.childNodes[0].textContent
+
+                        // Only affect the cells if the view type matches the type of cell
+                        const show_toggle = getShowToggleForViewType(content)
+                        if(!show_toggle.checked) {
+                            // If it's not enabled, then don't change anything
+                            return;
+                        }
+
+                        if(schedule_toggle.checked) {
+                            cell.style.display = 'block'
+                        } else {
+                            cell.style.display = 'none'
+                        }
+                    })
                 }
                 schedule_toggle.onclick = function() {
                     schedule_toggle.onchange();
                 }
                 schedule_toggle.style.float = 'left'
+                schedule_toggle.checked = true
 
-                // Make sure that the toggles start being checked on if there is
-                //   at least one uuid being shared
-                if(shared_uuids.length == 0 || shared_uuids.find(i => (i === v["uuid"]) ))
-                {
-                    schedule_toggle.onchange();
+                // Create a color picker to choose what color we should represent this schedule with
+                const schedule_color_picker = document.createElement('input')
+                schedule_color_picker.type = "color";
+                schedule_color_picker.id = 'S' + v["uuid"] + "_color";
+                schedule_color_picker.value = getUniqueRandomColor(128) // TODO
+                schedule_color_picker.onchange = function() {
+                    console.log(v.uuid + ' color set to ' + schedule_color_picker.value)
+
+                    // Get all schedule cell nodes
+                    var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
+
+                    color_cells.forEach(function(cell, i) {
+                        cell.style.backgroundColor = schedule_color_picker.value;
+                    })
                 }
 
-                schedule_div.id = v["uuid"]
+                schedule_div.id = 'S' + v["uuid"]
 
                 schedule_div.appendChild(schedule_link)
                 schedule_div.appendChild(schedule_toggle)
+                schedule_div.appendChild(document.createElement('br'))
+                schedule_div.appendChild(schedule_color_picker)
 
                 schedules_list_div.appendChild(schedule_div)
             })
+
+            return schedules;
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
@@ -272,7 +397,7 @@ function submitEditCalendarProperties() {
     // TODO
 }
 
-function submitCreateSchedule() {
+function submitCreateSchedule(table_div) {
     if(!hasQuery('uuid')) {
         console.log("Missing required option 'uuid'")
         return
@@ -284,7 +409,11 @@ function submitCreateSchedule() {
 
     const options = {
         method: 'POST',
-        body: JSON.stringify({ cal_uuid: calendar_uuid, name: schedule_name.value }),
+        body: JSON.stringify({
+            cal_uuid: calendar_uuid,
+            name: schedule_name.value,
+            schedule: getScheduleState(table_div)
+        }),
         headers: {
         }
     }
@@ -297,8 +426,36 @@ function submitCreateSchedule() {
             window.location.replace('./CalendarView.html?uuid=' + calendar_uuid)
 
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+}
 
-    // TODO: Also submit the schedule data
+function submitEditSchedule(table_div) {
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var schedule_uuid = getQuery('uuid')
+
+    const schedule_name = document.querySelector("#sname");
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({
+            uuid: schedule_uuid,
+            updates: {
+                name: schedule_name.value,
+                schedule: getScheduleState(table_div)
+            }
+        }),
+        headers: {
+        }
+    }
+
+    fetch(schedule_tool_path + '?operation=EDIT_SCH', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('Received response: ' + JSON.stringify(json))
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -314,22 +471,134 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
     // If 'share' is provided, decode the base64 value and only enable the
     //   schedules that are specified internally
-    var shared_uuids = []
+    var shared_data = {}
+    var has_shared = false
     if(hasQuery('share')) {
         const share_b64 = getQuery('share')
         var share_string = atob(share_b64)
 
-        shared_uuids = share_string.split(",")
+        shared_data = deserializeSharedCalendarViewData(share_string)
+        has_shared = true
     }
 
-    genViewCalendar(cal_div);
-    genSchedulesList(schedule_div, shared_uuids)
+    var schedules_promise = genSchedulesList(schedule_div)
+    genViewCalendar(cal_div, schedules_promise);
 
     // Make sure that we adjust the height of the schedules list so that it lines
     //   up with the calendar's height
     const cal_table_div = document.querySelector("div#" + cal_div);
     const schedules_list_div = document.querySelector("div#" + schedule_div);
-    schedules_list_div.style.height = cal_table_div.clientHeight;
+
+    // Wait until the schedules and calendar are all done before we calculate
+    //   the height
+    schedules_promise.then(function(schedules) {
+        schedules_list_div.style.height = cal_table_div.clientHeight;
+        return schedules
+    })
+    .then(function(schedules) {
+        // Skip disabling the non-shared schedules if there is no 'share' param
+        if(!has_shared || shared_data.schedules.length === 0) {
+            return schedules;
+        }
+
+        // Go over each schedule, and disable it if it isn't enabled in the
+        //   shared list
+        schedules.forEach(function(sch, i) {
+            var shared_sch = shared_data.schedules.find(sch_data => (sch_data.uuid === sch.uuid) )
+            if(shared_sch) {
+                const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
+                if(!shared_sch.enabled) {
+                    // Only disable the schedule if it is not enabled
+                    sch_toggle.onclick()
+                }
+            } else {
+                // Disable the schedule if it isn't found
+                sch_toggle.onclick()
+            }
+        })
+        return schedules;
+    })
+    .then(function(schedules) {
+        ////////////////////////////////////////////////////////////////////////
+        // Set up the checkboxes for toggling which views to see
+        var toggle_show = function(view_type, toggle) {
+            toggle.checked = !toggle.checked
+
+            schedules.forEach(function(sch, i) {
+                // First, check: is this schedule enabled?
+                //   If not, then skip over it
+                const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
+                if(!sch_toggle.checked) {
+                    return;
+                }
+
+                // Get all schedule cell nodes
+                var color_cells = document.querySelectorAll('[id^=schnode_' + sch.uuid + '_')
+
+                color_cells.forEach(function(cell, i) {
+                    const content = cell.childNodes[0].textContent
+
+                    // Only affect the cells if the view type matches the type of cell
+                    if(content === view_type) {
+                        if(toggle.checked) {
+                            cell.style.display = 'block'
+                        } else {
+                            cell.style.display = 'none'
+                        }
+                    }
+                })
+
+            })
+        }
+
+        const show_available_toggle = document.getElementById("show_available_toggle")
+        show_available_toggle.onchange = function() {
+            toggle_show("Available", show_available_toggle)
+        }
+        show_available_toggle.onclick = show_available_toggle.onchange
+
+        const show_unavailable_toggle = document.getElementById("show_unavailable_toggle")
+        show_unavailable_toggle.onchange = function() {
+            toggle_show("Un-Available", show_unavailable_toggle)
+        }
+        show_unavailable_toggle.onclick = show_unavailable_toggle.onchange
+
+        const show_tentative_toggle = document.getElementById("show_tentative_toggle")
+        show_tentative_toggle.onchange = function() {
+            toggle_show("Tentative", show_tentative_toggle)
+        }
+        show_tentative_toggle.onclick = show_tentative_toggle.onchange
+        ////////////////////////////////////////////////////////////////////////
+
+        if(has_shared) {
+            if(!shared_data.view_toggles.available) {
+                show_available_toggle.onclick()
+            }
+            if(!shared_data.view_toggles.unavailable) {
+                show_unavailable_toggle.onclick()
+            }
+            if(!shared_data.view_toggles.tentative) {
+                show_tentative_toggle.onclick()
+            }
+        }
+
+        return schedules
+    })
+    .then(function(schedules) {
+        if(!has_shared) {
+            return schedules;
+        }
+
+        // Run each onchange now so that we ensure that the colors are up to date
+        shared_data.schedules.forEach(function(schedule, i) {
+            const sch_color_picker = document.getElementById('S' + schedule.uuid + '_color')
+            sch_color_picker.value = schedule.color
+            sch_color_picker.onchange()
+        })
+
+        return schedules;
+    })
+
 
     // Make sure that the create schedule element can also point at the right page
     const create_schedule_element = document.querySelector("#" + create_schedule_link);
@@ -340,23 +609,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     share_button.type = "button"
     share_button.value = "Share"
     share_button.onclick = function() {
-        var to_share = ""
-
-        schedules_list_div.childNodes.forEach(div => {
-            const schedule_a = div.childNodes[0]
-            const schedule_input = div.childNodes[1]
-
-            if(schedule_input.checked) {
-                var params = new URLSearchParams(schedule_a.search)
-                var schedule_uuid = params.get('uuid')
-
-                to_share += schedule_uuid + ","
-            }
-        })
-
-        // Strip off the last comma
-        to_share = to_share.substr(0, to_share.length - 1)
-
+        var to_share = serializeSharedCalendarViewData(schedules_list_div)
         var to_share_encode = btoa(to_share)
 
         // Replace the URL in the address bar so that it can be copied
@@ -382,6 +635,43 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Utilities
+
+function serializeSharedCalendarViewData(schedules_list_div) {
+    var to_share = {
+        schedules: [ ], // { uuid, enabled, color }
+        view_toggles: {
+            available: true,
+            unavailable: true,
+            tentative: true
+        }
+    }
+
+    schedules_list_div.childNodes.forEach(div => {
+        const schedule_a = div.childNodes[0]
+        const schedule_input = div.childNodes[1]
+        // [2] == <br>
+        const schedule_color = div.childNodes[3]
+
+        var params = new URLSearchParams(schedule_a.search)
+        var schedule_uuid = params.get('uuid')
+
+        to_share.schedules.push({
+            uuid: schedule_uuid,
+            enabled: schedule_input.checked,
+            color: schedule_color.value
+        })
+    })
+
+    to_share.view_toggles.available = document.getElementById("show_available_toggle").checked
+    to_share.view_toggles.unavailable = document.getElementById("show_unavailable_toggle").checked
+    to_share.view_toggles.tentative = document.getElementById("show_tentative_toggle").checked
+
+    return JSON.stringify(to_share)
+}
+
+function deserializeSharedCalendarViewData(shared_data_str) {
+    return JSON.parse(shared_data_str)
+}
 
 // Will return an object containing the following information:
 //   The value of NUM_BLOCKS
@@ -419,5 +709,42 @@ function hasQuery(query_name) {
 function getQuery(query_name) {
     const params = new URLSearchParams(window.location.search)
     return params.get(query_name)
+}
+
+function getShowToggleForViewType(view_type) {
+    // Add more view-types as necessary
+    if(view_type === "Available") {
+        return document.getElementById("show_available_toggle")
+    } else if(view_type === "Un-Available") {
+        return document.getElementById("show_unavailable_toggle")
+    } else if(view_type === "Tentative") {
+        return document.getElementById("show_tentative_toggle")
+    } else {
+        return undefined
+    }
+}
+
+// Code from https://stackoverflow.com/a/17373688
+function getRandomColor(brightness) {
+    function randomChannel(brightness){
+        var r = 255-brightness;
+        var n = 0|((Math.random() * r) + brightness);
+        var s = n.toString(16);
+        return (s.length==1) ? '0'+s : s;
+    }
+    return '#' + randomChannel(brightness) + randomChannel(brightness) + randomChannel(brightness);
+}
+
+var PREVIOUSLY_CHOSEN_COLORS = []
+function getUniqueRandomColor(brightness) {
+    var color = "#000000";
+
+    do {
+        color = getRandomColor(brightness);
+    } while(PREVIOUSLY_CHOSEN_COLORS.includes(color));
+
+    PREVIOUSLY_CHOSEN_COLORS.push(color);
+
+    return color;
 }
 
