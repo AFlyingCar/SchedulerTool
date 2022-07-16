@@ -263,13 +263,17 @@ function genCalendarsList(div_name) {
 
             json.forEach(function(v, i) {
                 console.log("Received calendar '" + JSON.stringify(v) + "'")
+
+                const calendar_p = document.createElement('p')
+
                 const calendar_link = document.createElement('a')
 
                 // Use './' to do a relative link from here
                 calendar_link.href = './CalendarView.html?uuid=' + v["uuid"]
                 calendar_link.appendChild(document.createTextNode(v["name"]))
 
-                table_div.appendChild(calendar_link)
+                calendar_p.appendChild(calendar_link)
+                table_div.appendChild(calendar_p)
             })
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
@@ -395,6 +399,26 @@ function genSchedulesList(div_name) {
 
 function submitEditCalendarProperties() {
     // TODO
+}
+
+function submitCreateCalendar() {
+    const calendar_name = document.querySelector("#cname");
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({
+            name: calendar_name.value
+        }),
+        headers: { }
+    };
+
+    fetch(schedule_tool_path + '?operation=CREATE_CAL', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('createCalendar')
+
+            window.location.replace('./CalendarView.html?uuid=' + json.uuid)
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
 function submitCreateSchedule(table_div) {
