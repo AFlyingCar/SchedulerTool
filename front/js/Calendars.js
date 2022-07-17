@@ -398,7 +398,34 @@ function genSchedulesList(div_name) {
 // Request submit functions
 
 function submitEditCalendarProperties() {
-    // TODO
+    if(!hasQuery('uuid')) {
+        console.log("Missing required option 'uuid'")
+        return
+    }
+
+    var calendar_uuid = getQuery('uuid')
+
+    const calendar_name = document.querySelector("#cname");
+
+    const options = {
+        method: 'POST',
+        body: JSON.stringify({
+            uuid: calendar_uuid,
+            updates: {
+                name: calendar_name.value
+            }
+        }),
+        headers: {
+        }
+    }
+
+    fetch(schedule_tool_path + '?operation=EDIT_CAL', options)
+        .then(res => res.json())
+        .then(function(json) {
+            console.log('Received response: ' + JSON.stringify(json))
+            alert("Save successful.")
+        }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
+
 }
 
 function submitCreateCalendar() {
@@ -479,6 +506,7 @@ function submitEditSchedule(table_div) {
         .then(res => res.json())
         .then(function(json) {
             console.log('Received response: ' + JSON.stringify(json))
+            alert("Save successful.")
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
