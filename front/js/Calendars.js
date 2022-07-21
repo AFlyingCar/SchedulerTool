@@ -702,6 +702,8 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         }()
 
         window.history.replaceState(null, null, share_url)
+
+        alert("The address-bar has been modified with the share-link, don't forget to copy it!")
     }
 
     schedules_list_div.parentNode.appendChild(share_button)
