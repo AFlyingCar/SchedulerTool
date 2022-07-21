@@ -357,6 +357,11 @@ function genSchedulesList(div_name) {
                             cell.style.display = 'none'
                         }
                     })
+
+                    if(schedule_toggle.calc_schedules_list_height !== undefined)
+                    {
+                        schedule_toggle.calc_schedules_list_height()
+                    }
                 }
                 schedule_toggle.onclick = function() {
                     schedule_toggle.onchange();
@@ -541,10 +546,24 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     const cal_table_div = document.querySelector("div#" + cal_div);
     const schedules_list_div = document.querySelector("div#" + schedule_div);
 
+    const calc_schedules_list_height = function() {
+        console.log("Re-calculating SchedulesList div height.")
+        schedules_list_div.style.height = cal_table_div.clientHeight;
+    }
+
     // Wait until the schedules and calendar are all done before we calculate
     //   the height
     schedules_promise.then(function(schedules) {
-        schedules_list_div.style.height = cal_table_div.clientHeight;
+        calc_schedules_list_height();
+
+        return schedules
+    })
+    .then(function(schedules) {
+        schedules.forEach(function(sch, i) {
+            const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
+            sch_toggle.calc_schedules_list_height = calc_schedules_list_height;
+        })
+
         return schedules
     })
     .then(function(schedules) {
@@ -557,8 +576,9 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         //   shared list
         schedules.forEach(function(sch, i) {
             var shared_sch = shared_data.schedules.find(sch_data => (sch_data.uuid === sch.uuid) )
+
+            const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
             if(shared_sch) {
-                const sch_toggle = document.getElementById("S" + sch.uuid + "_toggle")
                 if(!shared_sch.enabled) {
                     // Only disable the schedule if it is not enabled
                     sch_toggle.onclick()
@@ -601,6 +621,8 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
                 })
 
             })
+
+            calc_schedules_list_height()
         }
 
         const show_available_toggle = document.getElementById("show_available_toggle")
