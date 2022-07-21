@@ -255,7 +255,7 @@ function genCalendarsList(div_name) {
         }
     }
 
-    fetch(schedule_tool_path + '?operation=LIST_CAL', options)
+    return fetch(schedule_tool_path + '?operation=LIST_CAL', options)
         .then(res => res.json())
         .then(function(json) {
             console.log('genCalendarsList(' + div_name + ')');
@@ -275,17 +275,13 @@ function genCalendarsList(div_name) {
                 calendar_p.appendChild(calendar_link)
                 table_div.appendChild(calendar_p)
             })
+
+            return json;
         }).catch(ex => console.log("Failed to parse response from ScheduleTool: ", ex));
 }
 
-function genSchedulesList(div_name) {
-    if(!hasQuery('uuid')) {
-        console.log("Missing required option 'uuid'")
-        return
-    }
-
-    var calendar_uuid = getQuery('uuid')
-
+function genSchedulesList(div_name, calendar_uuid, gen_toggles, gen_color_pickers, transform_schedule_div)
+{
     const options = {
         method: 'POST',
         body: JSON.stringify({ cal_uuid: calendar_uuid }),
@@ -296,10 +292,10 @@ function genSchedulesList(div_name) {
     return fetch(schedule_tool_path + '?operation=LIST_SCH', options)
         .then(res => res.json())
         .then(function(json) {
-            schedules = json.map(sch => { return { uuid: sch.uuid, schedule: sch.schedule } })
-                            .map(sch => { return { uuid: sch.uuid, schedule: sch.schedule.replace(/'/g, '"') } })
-                            .map(sch => { return { uuid: sch.uuid, schedule: (sch.schedule.length === 0 ? "{\"num_blocks\": 24, \"day_info\": []}" : sch.schedule ) } })
-                            .map(sch => { return { uuid: sch.uuid, schedule: JSON.parse(sch.schedule) } });
+            schedules = json.map(sch => { return { uuid: sch.uuid, name: sch.name, schedule: sch.schedule } })
+                            .map(sch => { return { uuid: sch.uuid, name: sch.name, schedule: sch.schedule.replace(/'/g, '"') } })
+                            .map(sch => { return { uuid: sch.uuid, name: sch.name, schedule: (sch.schedule.length === 0 ? "{\"num_blocks\": 24, \"day_info\": []}" : sch.schedule ) } })
+                            .map(sch => { return { uuid: sch.uuid, name: sch.name, schedule: JSON.parse(sch.schedule) } });
             json.forEach(function(v, i) {
                 const getsch_options = {
                     method: 'POST',
@@ -317,7 +313,7 @@ function genSchedulesList(div_name) {
                 const schedules_list_div = document.querySelector("div#" + div_name);
 
                 // Container for holding the link to the schedule and the toggle check-box
-                const schedule_div = document.createElement('div')
+                var schedule_div = document.createElement('div')
 
                 // Create link to the schedule
                 const schedule_link = document.createElement('a')
@@ -326,71 +322,85 @@ function genSchedulesList(div_name) {
                 schedule_link.href = './ScheduleView.html?uuid=' + v["uuid"]
                 schedule_link.appendChild(document.createTextNode(v["name"]))
 
-                // Create checkbox to toggle the schedule
-                const schedule_toggle = document.createElement('input')
+                var schedule_toggle;
+                if(gen_toggles) {
+                    // Create checkbox to toggle the schedule
+                    schedule_toggle = document.createElement('input')
 
-                schedule_toggle.type = 'checkbox'
-                schedule_toggle.id = 'S' + v.uuid + '_toggle'
-                schedule_toggle.onchange = function() {
-                    // Make sure we represent the change
-                    schedule_toggle.checked = !schedule_toggle.checked
+                    schedule_toggle.type = 'checkbox'
+                    schedule_toggle.id = 'S' + v.uuid + '_toggle'
+                    schedule_toggle.onchange = function() {
+                        // Make sure we represent the change
+                        schedule_toggle.checked = !schedule_toggle.checked
 
-                    // Get all schedule cell nodes
-                    var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
+                        // Get all schedule cell nodes
+                        var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
 
-                    color_cells.forEach(function(cell, i) {
-                        // First: Check what the cell's view type is, and only
-                        //   change how it's displayed if that view-type is
-                        //   actually enabled
-                        const content = cell.childNodes[0].textContent
+                        color_cells.forEach(function(cell, i) {
+                            // First: Check what the cell's view type is, and only
+                            //   change how it's displayed if that view-type is
+                            //   actually enabled
+                            const content = cell.childNodes[0].textContent
 
-                        // Only affect the cells if the view type matches the type of cell
-                        const show_toggle = getShowToggleForViewType(content)
-                        if(!show_toggle.checked) {
-                            // If it's not enabled, then don't change anything
-                            return;
+                            // Only affect the cells if the view type matches the type of cell
+                            const show_toggle = getShowToggleForViewType(content)
+                            if(!show_toggle.checked) {
+                                // If it's not enabled, then don't change anything
+                                return;
+                            }
+
+                            if(schedule_toggle.checked) {
+                                cell.style.display = 'block'
+                            } else {
+                                cell.style.display = 'none'
+                            }
+                        })
+
+                        if(schedule_toggle.calc_schedules_list_height !== undefined)
+                        {
+                            schedule_toggle.calc_schedules_list_height()
                         }
-
-                        if(schedule_toggle.checked) {
-                            cell.style.display = 'block'
-                        } else {
-                            cell.style.display = 'none'
-                        }
-                    })
-
-                    if(schedule_toggle.calc_schedules_list_height !== undefined)
-                    {
-                        schedule_toggle.calc_schedules_list_height()
                     }
+                    schedule_toggle.onclick = function() {
+                        schedule_toggle.onchange();
+                    }
+                    schedule_toggle.style.float = 'left'
+                    schedule_toggle.checked = true
                 }
-                schedule_toggle.onclick = function() {
-                    schedule_toggle.onchange();
-                }
-                schedule_toggle.style.float = 'left'
-                schedule_toggle.checked = true
 
-                // Create a color picker to choose what color we should represent this schedule with
-                const schedule_color_picker = document.createElement('input')
-                schedule_color_picker.type = "color";
-                schedule_color_picker.id = 'S' + v["uuid"] + "_color";
-                schedule_color_picker.value = getUniqueRandomColor(128) // TODO
-                schedule_color_picker.onchange = function() {
-                    console.log(v.uuid + ' color set to ' + schedule_color_picker.value)
+                var schedule_color_picker;
+                if(gen_color_pickers) {
+                    // Create a color picker to choose what color we should represent this schedule with
+                    schedule_color_picker = document.createElement('input')
+                    schedule_color_picker.type = "color";
+                    schedule_color_picker.id = 'S' + v["uuid"] + "_color";
+                    schedule_color_picker.value = getUniqueRandomColor(128) // TODO
+                    schedule_color_picker.onchange = function() {
+                        console.log(v.uuid + ' color set to ' + schedule_color_picker.value)
 
-                    // Get all schedule cell nodes
-                    var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
+                        // Get all schedule cell nodes
+                        var color_cells = document.querySelectorAll('[id^=schnode_' + v.uuid + '_')
 
-                    color_cells.forEach(function(cell, i) {
-                        cell.style.backgroundColor = schedule_color_picker.value;
-                    })
+                        color_cells.forEach(function(cell, i) {
+                            cell.style.backgroundColor = schedule_color_picker.value;
+                        })
+                    }
                 }
 
                 schedule_div.id = 'S' + v["uuid"]
 
                 schedule_div.appendChild(schedule_link)
-                schedule_div.appendChild(schedule_toggle)
-                schedule_div.appendChild(document.createElement('br'))
-                schedule_div.appendChild(schedule_color_picker)
+                if(gen_toggles) {
+                    schedule_div.appendChild(schedule_toggle)
+                }
+                if(gen_color_pickers) {
+                    schedule_div.appendChild(document.createElement('br'))
+                    schedule_div.appendChild(schedule_color_picker)
+                }
+
+                if(transform_schedule_div !== undefined) {
+                    schedule_div = transform_schedule_div(schedule_div)
+                }
 
                 schedules_list_div.appendChild(schedule_div)
             })
@@ -538,7 +548,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
         has_shared = true
     }
 
-    var schedules_promise = genSchedulesList(schedule_div)
+    var schedules_promise = genSchedulesList(schedule_div, calendar_uuid, true, true)
     genViewCalendar(cal_div, schedules_promise);
 
     // Make sure that we adjust the height of the schedules list so that it lines
@@ -703,6 +713,52 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
         alert("The address-bar has been modified with the share-link, don't forget to copy it!")
     }
+}
+
+function loadIndex(calendars_list_div_name, schedules_list_div_name) {
+    var calendars_list_promise = genCalendarsList(calendars_list_div_name)
+
+    calendars_list_promise.then(function(json) {
+        var schedules_promises = new Array();
+
+        json.forEach(function(cal, i) {
+            schedules_promises.push(genSchedulesList(schedules_list_div_name, cal.uuid, false, false,
+                schedule_div => {
+                    const p = document.createElement('p')
+                    p.appendChild(schedule_div)
+                    return p
+                }))
+        })
+
+        return Promise.all(schedules_promises)
+    })
+    .then(function(schedules_array) {
+        var schedules = schedules_array.flat()
+
+        const search_input_div = document.getElementById('sch_search')
+        search_input_div.onkeyup = function() {
+            schedules.forEach(function(sch) {
+                const sch_div = document.getElementById('S' + sch.uuid)
+
+                // Names are searched for case-insensitive
+                // UUIDs are searched for case-sensitive
+                if(sch.name.toLowerCase().includes(search_input_div.value.toLowerCase()) ||
+                   sch.uuid.includes(search_input_div.value))
+                {
+                    sch_div.style.display = 'block'
+                }
+                else {
+                    sch_div.style.display = 'none'
+                }
+            })
+        }
+    })
+
+    // Fix some style issues here:
+    const search_div = document.getElementById('search_div')
+    const schedules_list_div = document.getElementById(schedules_list_div_name)
+
+    schedules_list_div.style.width = search_div.clientWidth;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
