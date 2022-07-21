@@ -679,9 +679,7 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
     create_schedule_element.href += "?uuid=" + calendar_uuid;
 
     // Add share button
-    const share_button = document.createElement('input')
-    share_button.type = "button"
-    share_button.value = "Share"
+    const share_button = document.getElementById('share')
     share_button.onclick = function() {
         var to_share = serializeSharedCalendarViewData(schedules_list_div)
         var to_share_encode = btoa(to_share)
@@ -705,8 +703,6 @@ function loadCalendarView(cal_div, schedule_div, create_schedule_link) {
 
         alert("The address-bar has been modified with the share-link, don't forget to copy it!")
     }
-
-    schedules_list_div.parentNode.appendChild(share_button)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
