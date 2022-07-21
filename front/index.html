@@ -1,0 +1,22 @@
+<html>
+    <head><title>Schedule Tool</title></head>
+
+    <script src="js/Calendars.js"></script>
+
+    <body onLoad="loadIndex('calendar_list_scrollable_div', 'schedule_list_scrollable_div')">
+        <p><a href="./CreateCalendarView.html">Create New Calendar</a></p>
+        <div id="calendar_list_div" style="float: left">
+            <h3>All Calendars</h3>
+            <div id="calendar_list_scrollable_div" style="width:200px; border: 1px solid black"></div>
+        </div>
+        <div id="schdeule_list_div" style="float: right">
+            <h3>All Schedules</h3>
+            <div id="search_div">
+                <p>Search: <input type="text" id="sch_search">
+            </div>
+
+            <div id="schedule_list_scrollable_div" style="width:200px; border: 1px solid black"></div>
+        </div>
+    </body>
+</html>
+
