@@ -256,6 +256,32 @@ function genCreateScheduleCalendar(div_name) {
             td.style.border = '1px solid black';
         }
     })
+
+    const reset_sch_div = document.getElementById('reset_schedule_div')
+    const reset_sch_button = document.getElementById('reset_schedule_button')
+
+    // Generate the select menu
+    const reset_sch_select = cell_callback(0, 0, function(node) { })
+    reset_sch_select.id = 'reset_schedule_select'
+
+    // Generate the reset schedule button
+    reset_sch_button.onclick = function() {
+        let do_continue = confirm("Warning! This will reset every cell to '" + reset_sch_select.value + "'! Are you sure you want to do this?")
+
+        if(do_continue) {
+            for(let j = 0; j < DAY_NAMES.length; ++j) {
+                for(let i = 0; i < NUM_BLOCKS; ++i) {
+                    var cell = getCalendarCell(div_name, j + 1, i + 1);
+                    var cell_option = cell.childNodes[0]
+
+                    cell_option.value = reset_sch_select.value
+                    cell_option.onchange()
+                }
+            }
+        }
+    }
+
+    reset_sch_div.appendChild(reset_sch_select)
 }
 
 function genEditScheduleCalendar(div_name) {
