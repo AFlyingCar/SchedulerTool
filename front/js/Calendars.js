@@ -40,7 +40,8 @@ function genCalendarHeader(header_row, header_onclick) {
 //    cell. Takes indices (i,j). 1-based
 //  header_callback = optional function assigned as the on-click for the header
 //    row/column. Takes 0/1 for header row/column, index for which row/column
-function genCalendar(div_name, cell_callback, header_onclick) {
+function genCalendar(div_name, cell_callback, header_onclick, create_table_callback)
+{
     console.log('genCalendar(' + div_name + ')');
     const table_div = document.querySelector("div#" + div_name);
 
@@ -76,6 +77,10 @@ function genCalendar(div_name, cell_callback, header_onclick) {
     }
 
     table_div.append(table)
+
+    if(create_table_callback !== undefined) {
+        create_table_callback(table)
+    }
 }
 
 function genViewCalendar(div_name, schedules_promise) {
@@ -145,7 +150,7 @@ function genViewCalendar(div_name, schedules_promise) {
 
 // CreateSchedule calendar generation function
 function genCreateScheduleCalendar(div_name) {
-    genCalendar(div_name, function(time, day) {
+    const cell_callback = function(time, day, onchange_callback) {
         var new_node = document.createElement('select')
 
         var available_opt = document.createElement('option')
@@ -178,6 +183,8 @@ function genCreateScheduleCalendar(div_name) {
                     new_node.style.backgroundColor = ''
                     break
             }
+
+            onchange_callback(new_node)
         }
 
         // Make sure we run the on-change function for the first time to set up
@@ -185,10 +192,69 @@ function genCreateScheduleCalendar(div_name) {
         new_node.onchange()
 
         return new_node
+    }
+
+    genCalendar(div_name, function(time, day) {
+        return cell_callback(time, day, function(n) { })
     },
     function (row_v_col, index) {
         console.log('click on ' + row_v_col + '@index=' + index)
         // TODO
+    },
+    function(table) {
+        // Called after creating the table
+        table.insertRow().insertCell().appendChild(document.createElement('br')) // Insert a blank row for spacing
+        const tr = table.insertRow()
+
+        const header_cell = tr.insertCell();
+        header_cell.appendChild(document.createTextNode('Set All'))
+
+        // Create a special cell at the bottom of each column to set all values
+        //  in that column
+        for(let j = 0; j < DAY_NAMES.length; ++j) {
+            const td = tr.insertCell();
+            var node = cell_callback(0, j, function(node) {
+                for(let i = 0; i < NUM_BLOCKS; ++i) {
+                    var col_cell = getCalendarCell(div_name, j + 1, i + 1)
+                    col_cell.childNodes[0].value = node.value
+                    col_cell.childNodes[0].onchange()
+                }
+            })
+            td.appendChild(node);
+            td.style.border = '1px solid black';
+        }
+
+        // Now do the same thing again, but for rows
+
+        // First, lets create a 'Set All' header
+        const row1 = table.rows[0]
+        row1.insertCell().appendChild(function() {
+            const span = document.createElement('span')
+            span.innerHTML='&nbsp;&nbsp;&nbsp;&nbsp;'
+            return span
+        }())
+        row1.insertCell().appendChild(document.createTextNode('Set All'))
+
+        // Now, create a 'Set All' cell for each row
+        for(let i = 0; i < NUM_BLOCKS; ++i) {
+            const row = table.rows[i + 1]
+            row.insertCell().appendChild(function() {
+                const span = document.createElement('span')
+                span.innerHTML='&nbsp;&nbsp;&nbsp;&nbsp;'
+                return span
+            }())
+            var node = cell_callback(i, 0, function(node) {
+                for(let j = 0; j < DAY_NAMES.length; ++j) {
+                    var col_cell = getCalendarCell(div_name, j + 1, i + 1)
+                    col_cell.childNodes[0].value = node.value
+                    col_cell.childNodes[0].onchange()
+                }
+            })
+
+            const td = row.insertCell()
+            td.appendChild(node);
+            td.style.border = '1px solid black';
+        }
     })
 }
 
