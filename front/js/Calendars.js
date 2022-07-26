@@ -202,9 +202,14 @@ function genCreateScheduleCalendar(div_name) {
         // TODO
     },
     function(table) {
+        // NOTE: CHANGE THESE IF ANY SPECIAL ROWS/COLUMNS ARE ADDED/REMOVED
+        const SETALL_ROW_OFFSET = NUM_BLOCKS + 2
+        const SETALL_COLUMN_OFFSET = DAY_NAMES.length + 2
+
         // Called after creating the table
         table.insertRow().insertCell().appendChild(document.createElement('br')) // Insert a blank row for spacing
         const tr = table.insertRow()
+        const tr2 = table.insertRow()
 
         const header_cell = tr.insertCell();
         header_cell.appendChild(document.createTextNode('Set All'))
@@ -222,6 +227,21 @@ function genCreateScheduleCalendar(div_name) {
             })
             td.appendChild(node);
             td.style.border = '1px solid black';
+        }
+
+        // Add an 'Apply' button below each 'Set All' drop-down, so that the
+        //   value can be applied multiple times without needing to change what
+        //   the value is
+        tr2.insertCell() // Nothing goes in this cell
+        for(let j = 0; j < DAY_NAMES.length; ++j) {
+            const td = tr2.insertCell();
+            var node = document.createElement('input')
+            node.type = 'button'
+            node.value = 'Apply'
+            node.onclick = function() {
+                getCalendarCell(div_name, j + 1, SETALL_ROW_OFFSET).childNodes[0].onchange()
+            }
+            td.appendChild(node);
         }
 
         // Now do the same thing again, but for rows
@@ -254,6 +274,15 @@ function genCreateScheduleCalendar(div_name) {
             const td = row.insertCell()
             td.appendChild(node);
             td.style.border = '1px solid black';
+
+            const td2 = row.insertCell()
+            var node2 = document.createElement('input')
+            node2.type = 'button'
+            node2.value = 'Apply'
+            node2.onclick = function() {
+                getCalendarCell(div_name, SETALL_COLUMN_OFFSET, i + 1).childNodes[0].onchange()
+            }
+            td2.appendChild(node2)
         }
     })
 
