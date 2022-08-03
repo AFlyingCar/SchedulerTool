@@ -237,7 +237,7 @@ function genCreateScheduleCalendar(div_name) {
             const td = tr2.insertCell();
             var node = document.createElement('input')
             node.type = 'button'
-            node.value = 'Apply'
+            node.value = 'Re-Apply'
             node.onclick = function() {
                 getCalendarCell(div_name, j + 1, SETALL_ROW_OFFSET).childNodes[0].onchange()
             }
@@ -278,7 +278,7 @@ function genCreateScheduleCalendar(div_name) {
             const td2 = row.insertCell()
             var node2 = document.createElement('input')
             node2.type = 'button'
-            node2.value = 'Apply'
+            node2.value = 'Re-Apply'
             node2.onclick = function() {
                 getCalendarCell(div_name, SETALL_COLUMN_OFFSET, i + 1).childNodes[0].onchange()
             }
